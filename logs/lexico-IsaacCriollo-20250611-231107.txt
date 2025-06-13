@@ -1,0 +1,78 @@
+Análisis léxico de: algoritmo2_Isaac_Criollo.rb
+==================================================
+Línea 1: REQUIRE              require
+Línea 1: CADENA_SIMPLE        set
+Línea 3: DEF                  def
+Línea 3: ID                   procesar_datos
+Línea 4: ID                   datos
+Línea 4: ASIGNACION           =
+Línea 4: ID                   Set
+Línea 4: PUNTO                .
+Línea 4: NEW                  new
+Línea 6: PUTS                 puts
+Línea 6: CADENA               Ingrese datos numéricos (separados por espacios):
+Línea 7: ID                   entrada
+Línea 7: ASIGNACION           =
+Línea 7: GETS                 gets
+Línea 7: PUNTO                .
+Línea 7: SPLIT                split
+Línea 9: ID                   entrada
+Línea 9: PUNTO                .
+Línea 9: EACH                 each
+Línea 9: DO                   do
+Línea 9: PIPE                 |
+Línea 9: ID                   dato
+Línea 9: PIPE                 |
+Línea 10: IF                   if
+Línea 10: ID                   dato
+Línea 10: PUNTO                .
+Línea 10: MATCH_QUERY          match?
+Línea 10: PARENTESIS_IZQ       (
+Línea 10: REGEX                /^-?\d+\.?\d*$/
+Línea 10: PARENTESIS_DER       )
+Línea 11: ID                   datos
+Línea 11: PUNTO                .
+Línea 11: ADD                  add
+Línea 11: PARENTESIS_IZQ       (
+Línea 11: ID                   dato
+Línea 11: PUNTO                .
+Línea 11: INCLUDE_QUERY        include?
+Línea 11: PARENTESIS_IZQ       (
+Línea 11: CADENA_SIMPLE        .
+Línea 11: PARENTESIS_DER       )
+Línea 11: INTERROGACION        ?
+Línea 11: ID                   dato
+Línea 11: PUNTO                .
+Línea 11: TO_F                 to_f
+Línea 11: DOS_PUNTOS           :
+Línea 11: ID                   dato
+Línea 11: PUNTO                .
+Línea 11: TO_I                 to_i
+Línea 11: PARENTESIS_DER       )
+Línea 12: ELSE                 else
+Línea 13: PUTS                 puts
+Línea 13: CADENA_INTERPOLADA   '#{dato}' no es un número válido. Se omitirá.
+Línea 14: END                  end
+Línea 15: END                  end
+Línea 17: UNLESS               unless
+Línea 17: ID                   datos
+Línea 17: PUNTO                .
+Línea 17: EMPTY_QUERY          empty?
+Línea 18: PUTS                 puts
+Línea 18: CADENA               \n Resultados:
+Línea 19: PUTS                 puts
+Línea 19: CADENA_INTERPOLADA   • Total: #{datos.size} elementos
+Línea 20: PUTS                 puts
+Línea 20: CADENA_INTERPOLADA   • Máximo: #{datos.max}
+Línea 21: PUTS                 puts
+Línea 21: CADENA_INTERPOLADA   • Mínimo: #{datos.min}
+Línea 22: PUTS                 puts
+Línea 22: CADENA_INTERPOLADA   • Suma: #{datos.sum}
+Línea 23: PUTS                 puts
+Línea 23: CADENA_INTERPOLADA   • Promedio: #{datos.sum / datos.size}
+Línea 24: ELSE                 else
+Línea 25: PUTS                 puts
+Línea 25: CADENA                No se ingresaron datos válidos.
+Línea 26: END                  end
+Línea 27: END                  end
+Línea 29: ID                   procesar_datos

@@ -1,0 +1,183 @@
+import os 
+import ply.lex as lex
+
+
+import datetime
+ruta_carpeta="logs"
+ruta_algoritmos="algoritmos"
+noReconocidos=[]
+
+reserved = {
+
+    #Aporte Isaac Criollo
+    "if": "IF",
+    "else": "ELSE",
+    "elsif": "ELSIF",
+    "end": "END",
+    "def": "DEF",
+    "class": "CLASS",
+    "module": "MODULE",
+    "while": "WHILE",
+    "until": "UNTIL",
+    "for": "FOR",
+    "do": "DO",
+    "begin": "BEGIN",
+    "rescue": "RESCUE",
+    "ensure": "ENSURE",
+    "retry": "RETRY",
+    "break": "BREAK",
+    "next": "NEXT",
+    "redo": "REDO",
+    "return": "RETURN",
+}
+
+tokens = [
+    #Aporte Isaac Criollo
+    'RANGO_EXCLUSIVO',      # ...
+    'RANGO_INCLUSIVO',      # ..
+    'EXPONENCIACION',       # **
+    'MAS_ASIGNACION',       # +=
+    'MENOS_ASIGNACION',     # -=
+    'MULT_ASIGNACION',      # *=
+    'DIV_ASIGNACION',       # /=
+    'MOD_ASIGNACION',       # %=
+    'IGUAL',                # ==
+    'DIFERENTE',            # !=
+    'MAYOR_IGUAL',          # >=
+    'MENOR_IGUAL',          # <=
+    'NAVE_ESPACIAL',        # <=>
+    'AND_LOGICO',           # &&
+    'OR_LOGICO',            # ||
+    'ASIGNACION_HASH',      # =>
+    'FLOTANTE',             # Números decimales
+    'ENTERO',               # Números enteros
+
+] + list(reserved.values())
+
+
+#Aporte Isaac Criollo
+def t_RANGO_EXCLUSIVO(t):
+    r'\.\.\.'
+    return t
+
+def t_RANGO_INCLUSIVO(t):
+    r'\.\.'
+    return t
+
+def t_EXPONENCIACION(t):
+    r'\*\*'
+    return t
+
+def t_MAS_ASIGNACION(t):
+    r'\+='
+    return t
+
+def t_MENOS_ASIGNACION(t):
+    r'-='
+    return t
+
+def t_MULT_ASIGNACION(t):
+    r'\*='
+    return t
+
+def t_DIV_ASIGNACION(t):
+    r'/='
+    return t
+
+def t_MOD_ASIGNACION(t):
+    r'%='
+    return t
+
+def t_IGUAL(t):
+    r'=='
+    return t
+
+def t_DIFERENTE(t):
+    r'!='
+    return t
+
+def t_MAYOR_IGUAL(t):
+    r'>='
+    return t
+
+def t_MENOR_IGUAL(t):
+    r'<='
+    return t
+
+def t_NAVE_ESPACIAL(t):
+    r'<=>'
+    return t
+
+def t_AND_LOGICO(t):
+    r'&&'
+    return t
+
+def t_OR_LOGICO(t):
+    r'\|\|'
+    return t
+
+def t_ASIGNACION_HASH(t):
+    r'=>'
+    return t
+
+def t_FLOTANTE(t):
+    r'-?\d+\.\d+'
+    t.value = float(t.value)
+    return t
+
+def t_ENTERO(t):
+    r'-?\d+'
+    t.value = int(t.value)
+    return t
+
+
+
+#Aporte Comun
+lexer = lex.lex()
+
+def analizar_y_loguear(lexer_instance, archivo_ruby, prefijo_log):
+    """Analiza un archivo Ruby y guarda los tokens en un log"""
+    
+    os.makedirs(ruta_carpeta, exist_ok=True)
+    
+    ruta_completa = os.path.join(ruta_algoritmos, archivo_ruby)
+    try:
+        with open(ruta_completa, 'r', encoding='utf-8') as f:
+            codigo_ruby = f.read()
+    except FileNotFoundError:
+        print(f"Error: No se encontró el archivo {ruta_completa}")
+        return
+    except Exception as e:
+        print(f"Error al leer el archivo: {e}")
+        return
+
+    global noReconocidos
+    noReconocidos = []
+    
+    lexer_instance.input(codigo_ruby)
+    
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    nombre_log = f"{prefijo_log}-{timestamp}.txt"
+    ruta_log = os.path.join(ruta_carpeta, nombre_log)
+    
+    with open(ruta_log, 'w', encoding='utf-8') as log_file:
+        log_file.write(f"Análisis léxico de: {archivo_ruby}\n")
+        log_file.write("="*50 + "\n")
+        
+        for tok in lexer_instance:
+            valor = tok.value if isinstance(tok.value, str) else str(tok.value)
+            log_file.write(f"Línea {tok.lineno}: {tok.type:<20} {valor}\n")
+        
+        if noReconocidos:
+            log_file.write("\nErrores:\n")
+            log_file.write("\n".join(noReconocidos))
+    
+    print(f"Análisis completado. Resultados en: {ruta_log}")
+
+
+def pruebas_Isaac():
+    lexer = lex.lex()
+    analizar_y_loguear(lexer, "algoritmo2_Isaac_Criollo.rb", "lexico-IsaacCriollo")
+
+if __name__ == "__main__":
+    pruebas_Isaac()
