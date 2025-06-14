@@ -1,6 +1,6 @@
+
 import os 
 import ply.lex as lex
-
 
 import datetime
 ruta_carpeta="logs"
@@ -29,6 +29,26 @@ reserved = {
     "next": "NEXT",
     "redo": "REDO",
     "return": "RETURN",
+
+    #Aporte Joel Guamani
+    "yield": "YIELD",
+    "super": "SUPER",
+    "self": "SELF",
+    "nil": "NIL",
+    "true": "TRUE",
+    "false": "FALSE",
+    "and": "AND",
+    "or": "OR",
+    "not": "NOT",
+    "alias": "ALIAS",
+    "defined": "DEFINED",
+    "undef": "UNDEF",
+    "case": "CASE",
+    "when": "WHEN",
+    "then": "THEN",
+    "in": "IN",
+    "unless": "UNLESS", 
+    "puts": "PUTS",
 }
 
 tokens = [
@@ -52,8 +72,24 @@ tokens = [
     'FLOTANTE',             # Números decimales
     'ENTERO',               # Números enteros
 
+    #Aporte Joel Guamani
+    'REGEX',                # Expresiones regulares /pattern/
+    'CADENA_INTERPOLADA',   # Cadenas con interpolación #{...}
+    'CADENA',               # Cadenas entre comillas
+    'CADENA_SIMPLE',        # Cadenas entre comillas simples
+    'SIMBOLO',              # Símbolos :symbol
+    'ID_GLOBAL',            # Variables globales $var
+    'ID_INSTANCIA',         # Variables de instancia @var
+    'ID_CLASE',             # Variables de clase @@var
+    'METODO_PREGUNTA',      # match?, empty?, include?, etc.
+    'MATCH_QUERY',          # match?
+    'EMPTY_QUERY',          # empty?
+    'INCLUDE_QUERY',        # include?
+    'DEFINED_QUERY',        # defined?
+    'ID',                   # Identificadores normales
+    'COMENTARIO_LINEA',     # # comentario
+    'COMENTARIO_BLOQUE',    # =begin ... =end
 ] + list(reserved.values())
-
 
 #Aporte Isaac Criollo
 def t_RANGO_EXCLUSIVO(t):
@@ -131,6 +167,72 @@ def t_ENTERO(t):
     return t
 
 
+#Aporte Joel Guamani 
+
+def t_REGEX(t):
+    r'/(?:[^/\\]|\\.)+/[gimoux]*'
+    return t
+
+def t_CADENA_INTERPOLADA(t):
+    r'\"(?:[^\"\\]|\\.)*\"'
+
+    if '#{' in t.value:
+        t.type = 'CADENA_INTERPOLADA'
+    else:
+        t.type = 'CADENA'
+    t.value = t.value[1:-1]
+    return t
+
+def t_CADENA_SIMPLE(t):
+    r'\'(?:[^\'\\]|\\.)*\''
+    t.value = t.value[1:-1]
+    return t
+
+def t_SIMBOLO(t):
+    r':[a-zA-Z_]\w*'
+    return t
+
+def t_ID_GLOBAL(t):
+    r'\$[a-zA-Z_]\w*'
+    return t
+
+def t_ID_INSTANCIA(t):
+    r'@[a-zA-Z_]\w*'
+    return t
+
+def t_ID_CLASE(t):
+    r'@@[a-zA-Z_]\w*'
+    return t
+
+def t_METODO_PREGUNTA(t):
+    r'[a-zA-Z_]\w*\?'
+    
+    base_name = t.value[:-1]
+    
+    if base_name == 'match':
+        t.type = 'MATCH_QUERY'
+    elif base_name == 'empty':
+        t.type = 'EMPTY_QUERY'
+    elif base_name == 'include':
+        t.type = 'INCLUDE_QUERY'
+    elif base_name == 'defined':
+        t.type = 'DEFINED_QUERY'
+    else:
+        t.type = 'METODO_PREGUNTA'
+    return t
+
+def t_ID(t):
+    r'[a-zA-Z_]\w*'
+    t.type = reserved.get(t.value, 'ID')  
+    return t
+
+def t_COMENTARIO_LINEA(t):
+    r'\#.*'
+    pass
+
+def t_COMENTARIO_BLOQUE(t):
+    r'=begin[\s\S]*?=end'
+    pass
 
 #Aporte Comun
 lexer = lex.lex()
@@ -179,5 +281,10 @@ def pruebas_Isaac():
     lexer = lex.lex()
     analizar_y_loguear(lexer, "algoritmo2_Isaac_Criollo.rb", "lexico-IsaacCriollo")
 
+def pruebas_Joel():
+    lexer = lex.lex()
+    analizar_y_loguear(lexer, "algoritmo3_Joel_Guamani.rb", "lexico-Joel_Guamani")
+
 if __name__ == "__main__":
     pruebas_Isaac()
+    pruebas_Joel()
