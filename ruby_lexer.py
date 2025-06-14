@@ -49,6 +49,27 @@ reserved = {
     "in": "IN",
     "unless": "UNLESS", 
     "puts": "PUTS",
+
+    #Aporte Paulette Maldonado
+    "gets": "GETS",
+    "chomp": "CHOMP",
+    "each": "EACH",
+    "require": "REQUIRE",
+    "loop": "LOOP",
+    "new": "NEW",
+    "initialize": "INITIALIZE",
+    "to_i": "TO_I",
+    "to_f": "TO_F",
+    "to_s": "TO_S",
+    "include": "INCLUDE",
+    "empty": "EMPTY",
+    "match": "MATCH",
+    "split": "SPLIT",
+    "add": "ADD",
+    "size": "SIZE",
+    "max": "MAX",
+    "min": "MIN",
+    "sum": "SUM"
 }
 
 tokens = [
@@ -89,6 +110,32 @@ tokens = [
     'ID',                   # Identificadores normales
     'COMENTARIO_LINEA',     # # comentario
     'COMENTARIO_BLOQUE',    # =begin ... =end
+
+    #Aporte Paulette Maldonado
+    'MAS',                  # +
+    'MENOS',                # -
+    'MULTIPLICACION',       # *
+    'DIVISION',             # /
+    'MODULO',               # %
+    'ASIGNACION',           # =
+    'MAYOR_QUE',            # >
+    'MENOR_QUE',            # <
+    'NOT_LOGICO',           # !
+    'PARENTESIS_IZQ',       # (
+    'PARENTESIS_DER',       # )
+    'LLAVE_IZQ',            # {
+    'LLAVE_DER',            # }
+    'CORCHETE_IZQ',         # [
+    'CORCHETE_DER',         # ]
+    'COMA',                 # ,
+    'PUNTO',                # .
+    'DOS_PUNTOS',           # :
+    'PUNTO_COMA',           # ;
+    'INTERROGACION',        # ?
+    'CIRCUMFLEJO',          # ^
+    'PIPE',                 # |
+    'BACKSLASH',            # \
+    'DOLAR',                # $
 ] + list(reserved.values())
 
 #Aporte Isaac Criollo
@@ -234,6 +281,44 @@ def t_COMENTARIO_BLOQUE(t):
     r'=begin[\s\S]*?=end'
     pass
 
+
+#Aporte Paulette Maldonado
+t_MAS = r'\+'
+t_MENOS = r'-'
+t_MULTIPLICACION = r'\*'
+t_DIVISION = r'/'
+t_MODULO = r'%'
+t_ASIGNACION = r'='
+t_MAYOR_QUE = r'>'
+t_MENOR_QUE = r'<'
+t_NOT_LOGICO = r'!'
+t_PARENTESIS_IZQ = r'\('
+t_PARENTESIS_DER = r'\)'
+t_LLAVE_IZQ = r'\{'
+t_LLAVE_DER = r'\}'
+t_CORCHETE_IZQ = r'\['
+t_CORCHETE_DER = r'\]'
+t_COMA = r','
+t_PUNTO = r'\.'
+t_DOS_PUNTOS = r':'
+t_PUNTO_COMA = r';'
+t_INTERROGACION = r'\?'
+t_CIRCUMFLEJO = r'\^'
+t_PIPE = r'\|'
+t_BACKSLASH = r'\\'
+t_DOLAR = r'\$'
+t_ignore = ' \t'
+
+def t_newline(t):
+    r'\n+'
+    t.lexer.lineno += len(t.value)
+
+def t_error(t):
+    print(f"Carácter ilegal '{t.value[0]}' en la línea {t.lineno}")
+    noReconocidos.append(f"Carácter ilegal '{t.value[0]}' en la línea {t.lineno}")
+    t.lexer.skip(1)
+
+
 #Aporte Comun
 lexer = lex.lex()
 
@@ -285,6 +370,12 @@ def pruebas_Joel():
     lexer = lex.lex()
     analizar_y_loguear(lexer, "algoritmo3_Joel_Guamani.rb", "lexico-Joel_Guamani")
 
+def pruebas_Paulette():
+    lexer = lex.lex()
+    analizar_y_loguear(lexer, "algoritmo1_Paulette_Maldonado.rb", "lexico-PauletteMaldonado")
+
+
 if __name__ == "__main__":
     pruebas_Isaac()
     pruebas_Joel()
+    pruebas_Paulette()
