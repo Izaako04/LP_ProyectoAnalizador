@@ -1,0 +1,223 @@
+Análisis léxico de: algoritmo3_Joel_Guamani.rb
+==================================================
+Línea 2: DEF                  def
+Línea 2: ID                   sistema_reservas
+Línea 3: ID                   reservas
+Línea 3: ASIGNACION           =
+Línea 3: LLAVE_IZQ            {
+Línea 3: LLAVE_DER            }
+Línea 5: LOOP                 loop
+Línea 5: DO                   do
+Línea 6: PUTS                 puts
+Línea 6: CADENA               \n1. Nueva reserva | 2. Consultar reserva | 3. Salir
+Línea 7: ID                   opcion
+Línea 7: ASIGNACION           =
+Línea 7: GETS                 gets
+Línea 7: PUNTO                .
+Línea 7: TO_I                 to_i
+Línea 9: CASE                 case
+Línea 9: ID                   opcion
+Línea 10: WHEN                 when
+Línea 10: ENTERO               1
+Línea 11: BEGIN                begin
+Línea 12: PUTS                 puts
+Línea 12: CADENA               ID de reserva (ej: R100):
+Línea 13: ID                   id
+Línea 13: ASIGNACION           =
+Línea 13: GETS                 gets
+Línea 13: PUNTO                .
+Línea 13: ID                   strip
+Línea 13: PUNTO                .
+Línea 13: ID                   upcase
+Línea 14: ID                   raise
+Línea 14: CADENA               ID debe empezar con 'R' seguido de números
+Línea 14: ID                   unless
+Línea 14: ID                   id
+Línea 14: PUNTO                .
+Línea 14: ID                   match
+Línea 14: PARENTESIS_IZQ       (
+Línea 14: DIVISION             /
+Línea 14: ID                   R
+Línea 14: ID                   d
+Línea 14: MAS                  +
+Línea 14: DIVISION             /
+Línea 14: PARENTESIS_DER       )
+Línea 16: PUTS                 puts
+Línea 16: CADENA               Nombre del cliente:
+Línea 17: ID                   nombre
+Línea 17: ASIGNACION           =
+Línea 17: GETS                 gets
+Línea 17: PUNTO                .
+Línea 17: ID                   strip
+Línea 18: ID                   raise
+Línea 18: CADENA               Nombre no puede estar vacío
+Línea 18: IF                   if
+Línea 18: ID                   nombre
+Línea 18: PUNTO                .
+Línea 18: ID                   empty
+Línea 20: PUTS                 puts
+Línea 20: CADENA               Fecha de entrada (DD-MM-AAAA):
+Línea 21: ID                   fecha_entrada
+Línea 21: ASIGNACION           =
+Línea 21: GETS                 gets
+Línea 21: PUNTO                .
+Línea 21: ID                   strip
+Línea 22: ID                   raise
+Línea 22: CADENA               Formato de fecha incorrecto
+Línea 22: ID                   unless
+Línea 22: ID                   fecha_entrada
+Línea 22: PUNTO                .
+Línea 22: ID                   match
+Línea 22: PARENTESIS_IZQ       (
+Línea 22: DIVISION             /
+Línea 22: ID                   d
+Línea 22: LLAVE_IZQ            {
+Línea 22: ENTERO               2
+Línea 22: LLAVE_DER            }
+Línea 22: MENOS                -
+Línea 22: ID                   d
+Línea 22: LLAVE_IZQ            {
+Línea 22: ENTERO               2
+Línea 22: LLAVE_DER            }
+Línea 22: MENOS                -
+Línea 22: ID                   d
+Línea 22: LLAVE_IZQ            {
+Línea 22: ENTERO               4
+Línea 22: LLAVE_DER            }
+Línea 22: DIVISION             /
+Línea 22: PARENTESIS_DER       )
+Línea 24: PUTS                 puts
+Línea 24: CADENA               Noches (máx 30):
+Línea 25: ID                   noches
+Línea 25: ASIGNACION           =
+Línea 25: ID                   Integer
+Línea 25: PARENTESIS_IZQ       (
+Línea 25: GETS                 gets
+Línea 25: PARENTESIS_DER       )
+Línea 25: RESCUE               rescue
+Línea 25: NIL                  nil
+Línea 26: ID                   raise
+Línea 26: CADENA               Noches debe ser un número entre 1 y 30
+Línea 26: IF                   if
+Línea 26: ID                   noches
+Línea 26: PUNTO                .
+Línea 26: NIL                  nil
+Línea 26: OR_LOGICO            ||
+Línea 26: ID                   noches
+Línea 26: MENOR_IGUAL          <=
+Línea 26: ENTERO               0
+Línea 26: OR_LOGICO            ||
+Línea 26: ID                   noches
+Línea 26: MAYOR_QUE            >
+Línea 26: ENTERO               30
+Línea 28: ID                   reservas
+Línea 28: CORCHETE_IZQ         [
+Línea 28: ID                   id
+Línea 28: CORCHETE_DER         ]
+Línea 28: ASIGNACION           =
+Línea 28: LLAVE_IZQ            {
+Línea 29: ID                   nombre
+Línea 29: DOS_PUNTOS           :
+Línea 29: ID                   nombre
+Línea 29: COMA                 ,
+Línea 30: ID                   fecha_entrada
+Línea 30: DOS_PUNTOS           :
+Línea 30: ID                   fecha_entrada
+Línea 30: COMA                 ,
+Línea 31: ID                   noches
+Línea 31: DOS_PUNTOS           :
+Línea 31: ID                   noches
+Línea 31: COMA                 ,
+Línea 32: ID                   estado
+Línea 32: DOS_PUNTOS           :
+Línea 32: CADENA               confirmada
+Línea 33: LLAVE_DER            }
+Línea 35: PUTS                 puts
+Línea 35: CADENA               Reserva #{id} registrada para #{nombre}.
+Línea 36: RESCUE               rescue
+Línea 36: ASIGNACION_HASH      =>
+Línea 36: ID                   e
+Línea 37: PUTS                 puts
+Línea 37: CADENA                Error: #{e.message}
+Línea 38: END                  end
+Línea 40: WHEN                 when
+Línea 40: ENTERO               2
+Línea 41: PUTS                 puts
+Línea 41: CADENA               ID de reserva a consultar:
+Línea 42: ID                   id
+Línea 42: ASIGNACION           =
+Línea 42: GETS                 gets
+Línea 42: PUNTO                .
+Línea 42: ID                   strip
+Línea 42: PUNTO                .
+Línea 42: ID                   upcase
+Línea 43: ID                   reserva
+Línea 43: ASIGNACION           =
+Línea 43: ID                   reservas
+Línea 43: CORCHETE_IZQ         [
+Línea 43: ID                   id
+Línea 43: CORCHETE_DER         ]
+Línea 45: IF                   if
+Línea 45: ID                   reserva
+Línea 46: PUTS                 puts
+Línea 46: CADENA               \n Detalles de reserva #{id}:
+Línea 47: PUTS                 puts
+Línea 47: CADENA               • Cliente: #{reserva[:nombre]}
+Línea 48: PUTS                 puts
+Línea 48: CADENA               • Fecha entrada: #{reserva[:fecha_entrada]}
+Línea 49: PUTS                 puts
+Línea 49: CADENA               • Noches: #{reserva[:noches]}
+Línea 50: PUTS                 puts
+Línea 50: CADENA               • Estado: #{reserva[:estado]}
+Línea 51: ELSE                 else
+Línea 52: PUTS                 puts
+Línea 52: CADENA               Reserva no encontrada.
+Línea 53: END                  end
+Línea 55: WHEN                 when
+Línea 55: ENTERO               3
+Línea 56: BREAK                break
+Línea 58: ELSE                 else
+Línea 59: PUTS                 puts
+Línea 59: CADENA               Opción no válida.
+Línea 60: END                  end
+Línea 61: END                  end
+Línea 62: END                  end
+Línea 64: ID                   sistema_reservas
+
+Errores:
+Carácter ilegal '?' en la línea 14
+Carácter ilegal '?' en la línea 18
+Carácter ilegal '?' en la línea 22
+Carácter ilegal '|' en la línea 34
+Carácter ilegal '|' en la línea 34
+Carácter ilegal '?' en la línea 34
+Carácter ilegal '?' en la línea 36
+Carácter ilegal '|' en la línea 39
+Carácter ilegal '|' en la línea 39
+Carácter ilegal '|' en la línea 45
+Carácter ilegal '|' en la línea 45
+Carácter ilegal '|' en la línea 9
+Carácter ilegal '|' en la línea 9
+Carácter ilegal '?' en la línea 10
+Carácter ilegal '^' en la línea 10
+Carácter ilegal '?' en la línea 10
+Carácter ilegal '\' en la línea 10
+Carácter ilegal '\' en la línea 10
+Carácter ilegal '?' en la línea 10
+Carácter ilegal '\' en la línea 10
+Carácter ilegal '$' en la línea 10
+Carácter ilegal '?' en la línea 11
+Carácter ilegal '?' en la línea 11
+Carácter ilegal '?' en la línea 17
+Carácter ilegal '?' en la línea 14
+Carácter ilegal '^' en la línea 14
+Carácter ilegal '\' en la línea 14
+Carácter ilegal '$' en la línea 14
+Carácter ilegal '?' en la línea 18
+Carácter ilegal '?' en la línea 22
+Carácter ilegal '^' en la línea 22
+Carácter ilegal '\' en la línea 22
+Carácter ilegal '\' en la línea 22
+Carácter ilegal '\' en la línea 22
+Carácter ilegal '$' en la línea 22
+Carácter ilegal '?' en la línea 26
