@@ -89,6 +89,47 @@ def p_vacio(p):
     '''
     pass
 
+# Aporte Paulette Maldonado
+def p_sentencia_impresion(p):
+    '''
+    sentencia_impresion : PUTS expresion
+                        | PRINT expresion
+                        | PRINTF expresion
+    '''
+    p[0] = ('imprimir', p[1], p[2])
+
+# Aporte Paulette Maldonado
+def p_sentencia_entrada(p):
+    '''
+    sentencia_entrada : GETS encadenamiento_metodos_opcional
+    '''
+    p[0] = ('entrada', p[1], p[2])
+
+# Aporte Paulette Maldonado
+def p_encadenamiento_metodos_opcional(p):
+    '''
+    encadenamiento_metodos_opcional : PUNTO ID PARENTESIS_IZQ argumentos_metodo PARENTESIS_DER encadenamiento_metodos_opcional %prec DOT_CALL
+                                    | PUNTO ID PARENTESIS_IZQ PARENTESIS_DER encadenamiento_metodos_opcional %prec DOT_CALL
+                                    | PUNTO ID encadenamiento_metodos_opcional %prec DOT_CALL
+                                    | PUNTO TO_I encadenamiento_metodos_opcional %prec DOT_CALL
+                                    | PUNTO TO_F encadenamiento_metodos_opcional %prec DOT_CALL
+                                    | PUNTO TO_S encadenamiento_metodos_opcional %prec DOT_CALL
+                                    | CHOMP encadenamiento_metodos_opcional
+                                    | vacio
+    '''
+    if len(p) > 1 and p[1] == '.':
+        if len(p) == 6:
+            p[0] = [('llamada_metodo', p[2], p[4])] + p[6]
+        elif len(p) == 5:
+            p[0] = [('llamada_metodo', p[2], [])] + p[5]
+        elif len(p) == 4:
+            p[0] = [('llamada_metodo', p[2], None)] + p[3]
+    elif len(p) == 3:
+        p[0] = [('llamada_metodo', p[1], None)] + p[2]
+    else:
+        p[0] = []
+
+# Aporte Isaac Criollo
 def p_expresion_aritmetica(p):
     '''
     expresion : expresion MAS expresion
@@ -100,6 +141,7 @@ def p_expresion_aritmetica(p):
     '''
     p[0] = ('operacion_binaria', p[2], p[1], p[3])
 
+# Aporte Isaac Criollo
 def p_expresion_unaria_menos(p):
     '''
     expresion : MENOS expresion %prec UMINUS
@@ -133,7 +175,7 @@ def p_termino_expresion(p):
     '''
     p[0] = p[1]
 
-
+# Aporte Isaac Criollo
 def p_sentencia_asignacion(p):
     '''
     sentencia_asignacion : identificador_variable ASIGNACION expresion
@@ -155,6 +197,26 @@ def p_identificador_variable(p):
     '''
     p[0] = p[1]
 
+# Aporte Paulette Maldonado: Array
+def p_creacion_array(p):
+    '''
+    creacion_estructura_datos : CORCHETE_IZQ elementos_array CORCHETE_DER
+                              | CORCHETE_IZQ CORCHETE_DER
+    '''
+    if len(p) == 3:
+        p[0] = ('arreglo', [])
+    else:
+        p[0] = ('arreglo', p[2])
+
+def p_elementos_array(p):
+    '''
+    elementos_array : expresion
+                    | elementos_array COMA expresion
+    '''
+    if len(p) == 2:
+        p[0] = [p[1]]
+    else:
+        p[0] = p[1] + [p[3]]
 
 # Aporte Isaac Criollo: Set
 def p_creacion_set(p):
@@ -175,7 +237,24 @@ def p_bucle_while(p):
     '''
     p[0] = ('bucle_mientras', p[2], p[4] if len(p) == 5 else p[3])
 
+# Aporte Paulette Maldonado: Bucle Loop
+def p_bucle_general(p):
+    '''
+    sentencia_bucle : LOOP DO sentencias END
+                    | LOOP LLAVE_IZQ sentencias LLAVE_DER
+    '''
+    p[0] = ('bucle_infinito', p[3] if p[2] == 'do' else p[2])
 
+def p_argumentos_bloque(p):
+    '''
+    argumentos_bloque : ID
+                      | ID COMA argumentos_bloque
+                      | vacio
+    '''
+    if len(p) == 2:
+        p[0] = [p[1]] if p[1] is not None else []
+    else:
+        p[0] = [p[1]] + p[3]
 
 # Aporte Joel Guamani / Isaac Criollo (Definición de Función)
 def p_definicion_metodo(p):
@@ -205,6 +284,65 @@ def p_lista_parametros(p):
     else:
         p[0] = [p[1]] + p[3]
 
+# Aporte Paulette Maldonado (Llamada a función/método)
+def p_llamada_metodo(p):
+    '''
+    llamada_metodo : ID PARENTESIS_IZQ argumentos_metodo PARENTESIS_DER encadenamiento_mas_metodos
+                   | ID PARENTESIS_IZQ PARENTESIS_DER encadenamiento_mas_metodos
+                   | ID encadenamiento_mas_metodos
+                   | ID PUNTO llamada_metodo
+                   | ID_GLOBAL PUNTO llamada_metodo
+                   | ID_INSTANCIA PUNTO llamada_metodo
+                   | ID_CLASE PUNTO llamada_metodo
+                   | SIMBOLO PUNTO llamada_metodo
+                   | SELF PUNTO llamada_metodo
+    '''
+    if len(p) == 6:
+        p[0] = ('llamada_funcion', p[1], p[3], p[5])
+    elif len(p) == 5:
+        p[0] = ('llamada_funcion', p[1], [], p[4])
+    elif len(p) == 3 and p[2] not in ['.', '?', '!']:
+        p[0] = ('llamada_funcion', p[1], None, p[2])
+    elif len(p) == 4 and p[2] == '.':
+        p[0] = ('cadena_metodos', p[1], p[3])
+    else:
+        p[0] = ('llamada_funcion', p[1], None, [])
+
+def p_encadenamiento_mas_metodos(p):
+    '''
+    encadenamiento_mas_metodos : PUNTO ID PARENTESIS_IZQ argumentos_metodo PARENTESIS_DER encadenamiento_mas_metodos %prec DOT_CALL
+                               | PUNTO ID PARENTESIS_IZQ PARENTESIS_DER encadenamiento_mas_metodos %prec DOT_CALL
+                               | PUNTO ID encadenamiento_mas_metodos %prec DOT_CALL
+                               | PUNTO METODO_PREGUNTA encadenamiento_mas_metodos %prec DOT_CALL
+                               | PUNTO METODO_EXCLAMACION encadenamiento_mas_metodos %prec DOT_CALL
+                               | PUNTO TO_I encadenamiento_mas_metodos %prec DOT_CALL
+                               | PUNTO TO_F encadenamiento_mas_metodos %prec DOT_CALL
+                               | PUNTO TO_S encadenamiento_mas_metodos %prec DOT_CALL
+                               | CHOMP encadenamiento_mas_metodos
+                               | vacio
+    '''
+    if len(p) > 1 and p[1] == '.':
+        if len(p) == 6:
+            p[0] = [('llamada_encadenada', p[2], p[4])] + p[6]
+        elif len(p) == 5:
+            p[0] = [('llamada_encadenada', p[2], [])] + p[5]
+        elif len(p) == 4:
+            p[0] = [('llamada_encadenada', p[2], None)] + p[3]
+    elif len(p) == 3:
+        p[0] = [('llamada_encadenada', p[1], None)] + p[2]
+    else:
+        p[0] = []
+
+def p_argumentos_metodo(p):
+    '''
+    argumentos_metodo : expresion
+                      | argumentos_metodo COMA expresion
+                      | vacio
+    '''
+    if len(p) == 2:
+        p[0] = [p[1]] if p[1] is not None else []
+    else:
+        p[0] = p[1] + [p[3]]
 
 # Aporte Isaac Criollo: Definición de Clase
 def p_definicion_clase(p):
@@ -223,6 +361,69 @@ def p_cuerpo_clase(p):
                  | vacio
     '''
     p[0] = p[1]
+
+# Aporte Paulette Maldonado: Método 'initialize' (constructor)
+def p_metodo_inicializacion(p):
+    '''
+    metodo_inicializacion : DEF INITIALIZE PARENTESIS_IZQ lista_parametros PARENTESIS_DER sentencias END
+                          | DEF INITIALIZE sentencias END
+    '''
+    if len(p) == 8:
+        p[0] = ('metodo_inicializacion', p[4], p[6])
+    else:
+        p[0] = ('metodo_inicializacion', [], p[3])
+
+# Aporte Paulette Maldonado: BEGIN...RESCUE...END
+def p_sentencia_begin_rescue(p):
+    '''
+    sentencia_begin_rescue : BEGIN sentencias clausulas_rescue_opcional END
+    '''
+    p[0] = ('begin_rescue', p[2], p[3])
+
+def p_clausulas_rescue_opcional(p):
+    '''
+    clausulas_rescue_opcional : clausula_rescue clausulas_rescue_opcional
+                              | clausula_ensure
+                              | vacio
+    '''
+    if len(p) == 3:
+        p[0] = [p[1]] + p[2]
+    elif len(p) == 2:
+        p[0] = [p[1]]
+    else:
+        p[0] = []
+
+def p_clausula_rescue(p):
+    '''
+    clausula_rescue : RESCUE sentencias
+                    | RESCUE identificador_variable ASIGNA_HASH ID sentencias
+                    | RESCUE ID ASIGNA_HASH ID sentencias
+                    | RESCUE ID sentencias
+                    | RESCUE ID_CLASE sentencias
+    '''
+    if len(p) == 3:
+        p[0] = ('captura_excepcion', None, None, p[2])
+    elif len(p) == 6:
+        p[0] = ('captura_excepcion', p[2], p[4], p[5])
+    elif len(p) == 4:
+        p[0] = ('captura_excepcion', p[2], None, p[3])
+
+def p_clausula_ensure(p):
+    '''
+    clausula_ensure : ENSURE sentencias
+    '''
+    p[0] = ('asegurar', p[2])
+
+def p_error(p):
+    global errores_sintacticos
+    if p:
+        error_msg = f"Error de sintaxis en el token '{p.type}' ('{p.value}') en la línea {p.lineno}, columna {p.lexpos}"
+        print(error_msg)
+        errores_sintacticos.append(error_msg)
+    else:
+        error_msg = "Error de sintaxis en EOF (fin de archivo inesperado)."
+        print(error_msg)
+        errores_sintacticos.append(error_msg)
 
 parser = yacc.yacc(debug=True)
 
