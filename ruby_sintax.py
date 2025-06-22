@@ -175,6 +175,87 @@ def p_termino_expresion(p):
     '''
     p[0] = p[1]
 
+# Aporte Joel Guamani
+def p_sentencia_condicional(p):
+    '''
+    sentencia_condicional : IF expresion THEN sentencias END
+                          | IF expresion THEN sentencias ELSE sentencias END
+                          | IF expresion THEN sentencias CLAUSULAS_ELSIF END
+                          | IF expresion THEN sentencias CLAUSULAS_ELSIF ELSE sentencias END
+                          | UNLESS expresion THEN sentencias END
+                          | UNLESS expresion THEN sentencias ELSE sentencias END
+                          | CASE expresion sentencias_when_case END
+    '''
+    if p[1] == 'if':
+        if len(p) == 5:
+            p[0] = ('si', p[2], p[4], None, None)
+        elif len(p) == 7:
+            p[0] = ('si_sino', p[2], p[4], p[6])
+        elif len(p) == 6:
+            p[0] = ('si_sino_si', p[2], p[4], p[5], None)
+        elif len(p) == 8:
+            p[0] = ('si_sino_si_sino', p[2], p[4], p[5], p[7])
+    elif p[1] == 'unless':
+        if len(p) == 5:
+            p[0] = ('a_menos_que', p[2], p[4], None)
+        else:
+            p[0] = ('a_menos_que_sino', p[2], p[4], p[6])
+    elif p[1] == 'case':
+        p[0] = ('caso', p[2], p[3])
+
+def p_CLAUSULAS_ELSIF(p):
+    '''
+    CLAUSULAS_ELSIF : ELSIF expresion THEN sentencias
+                    | CLAUSULAS_ELSIF ELSIF expresion THEN sentencias
+    '''
+    if len(p) == 5:
+        p[0] = [('sino_si', p[2], p[4])]
+    else:
+        p[0] = p[1] + [('sino_si', p[3], p[5])]
+
+# Aporte Joel Guamani
+def p_sentencias_when_case(p):
+    '''
+    sentencias_when_case : WHEN expresion THEN sentencias
+                         | sentencias_when_case WHEN expresion THEN sentencias
+                         | sentencias_when_case ELSE sentencias
+    '''
+    if len(p) == 5:
+        p[0] = [('cuando', p[2], p[4])]
+    elif len(p) == 4:
+        p[0] = p[1] + [('rama_sino', p[2])]
+    else:
+        p[0] = p[1] + [('cuando', p[3], p[5])]
+
+def p_expresion_comparacion(p):
+    '''
+    expresion : expresion IGUAL expresion
+              | expresion DIFERENTE expresion
+              | expresion MAYOR_QUE expresion
+              | expresion MENOR_QUE expresion
+              | expresion MAYOR_IGUAL expresion
+              | expresion MENOR_IGUAL expresion
+              | expresion NAVE_ESPACIAL expresion
+              | expresion TRIPLE_IGUAL expresion
+    '''
+    p[0] = ('comparacion', p[2], p[1], p[3])
+
+def p_expresion_logica(p):
+    '''
+    expresion : expresion AND_LOGICO expresion
+              | expresion OR_LOGICO expresion
+              | expresion Y_SIGNO expresion
+              | expresion O_SIGNO expresion
+    '''
+    p[0] = ('operador_logico', p[2], p[1], p[3])
+
+def p_expresion_negacion(p):
+    '''
+    expresion : NOT_LOGICO expresion
+              | EXCLAMACION_BAJO expresion
+    '''
+    p[0] = ('negacion', p[2])
+
 # Aporte Isaac Criollo
 def p_sentencia_asignacion(p):
     '''
@@ -229,6 +310,37 @@ def p_creacion_set(p):
     else:
         p[0] = ('conjunto', [])
 
+# Aporte Joel Guamani: Hash
+def p_creacion_hash(p):
+    '''
+    creacion_estructura_datos : LLAVE_IZQ elementos_hash LLAVE_DER
+                              | LLAVE_IZQ LLAVE_DER
+    '''
+    if len(p) == 3:
+        p[0] = ('hash', [])
+    else:
+        p[0] = ('hash', p[2])
+
+def p_elementos_hash(p):
+    '''
+    elementos_hash : elemento_hash
+                   | elementos_hash COMA elemento_hash
+    '''
+    if len(p) == 2:
+        p[0] = [p[1]]
+    else:
+        p[0] = p[1] + [p[3]]
+
+def p_elemento_hash(p):
+    '''
+    elemento_hash : expresion ASIGNA_HASH expresion
+                  | SIMBOLO DOS_PUNTOS expresion
+    '''
+    if len(p) == 4 and p[2] == '=>':
+        p[0] = ('par_hash', p[1], p[3])
+    else:
+        p[0] = ('par_hash', p[1], p[3])
+
 # Aporte Isaac Criollo: Bucle While
 def p_bucle_while(p):
     '''
@@ -236,6 +348,23 @@ def p_bucle_while(p):
                     | WHILE expresion sentencias END
     '''
     p[0] = ('bucle_mientras', p[2], p[4] if len(p) == 5 else p[3])
+
+# Aporte Joel Guamani: Bucle For (each en Ruby)
+def p_bucle_for_each(p):
+    '''
+    sentencia_bucle : ID PUNTO EACH bloque_o_do_end
+    '''
+    p[0] = ('bucle_para_cada', p[1], p[4])
+
+def p_bloque_o_do_end(p):
+    '''
+    bloque_o_do_end : DO sentencias END
+                    | LLAVE_IZQ argumentos_bloque PIPE sentencias LLAVE_DER
+    '''
+    if p[1] == 'do':
+        p[0] = p[2]
+    else:
+        p[0] = ('bloque', p[2], p[4])
 
 # Aporte Paulette Maldonado: Bucle Loop
 def p_bucle_general(p):
