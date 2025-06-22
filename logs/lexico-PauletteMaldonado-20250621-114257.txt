@@ -32,7 +32,7 @@ Línea 14: CADENA               Nombre no puede estar vacío
 Línea 14: IF                   if
 Línea 14: ID                   nombre
 Línea 14: PUNTO                .
-Línea 14: EMPTY_QUERY          empty?
+Línea 14: CONSULTA_VACIA       empty?
 Línea 16: PUTS                 puts
 Línea 16: CADENA               Precio (USD):
 Línea 17: ID                   precio
@@ -119,7 +119,7 @@ Línea 34: CORCHETE_DER         ]
 Línea 34: PUNTO                .
 Línea 34: ID                   downcase
 Línea 34: PUNTO                .
-Línea 34: INCLUDE_QUERY        include?
+Línea 34: CONSULTA_INCLUDE     include?
 Línea 34: PARENTESIS_IZQ       (
 Línea 34: ID                   busqueda
 Línea 34: PARENTESIS_DER       )
@@ -127,7 +127,7 @@ Línea 34: LLAVE_DER            }
 Línea 36: IF                   if
 Línea 36: ID                   resultados
 Línea 36: PUNTO                .
-Línea 36: EMPTY_QUERY          empty?
+Línea 36: CONSULTA_VACIA       empty?
 Línea 37: PUTS                 puts
 Línea 37: CADENA               No se encontraron productos.
 Línea 38: ELSE                 else

@@ -26,7 +26,7 @@ Línea 9: PIPE                 |
 Línea 10: IF                   if
 Línea 10: ID                   dato
 Línea 10: PUNTO                .
-Línea 10: MATCH_QUERY          match?
+Línea 10: CONSULTA_COINICIDA   match?
 Línea 10: PARENTESIS_IZQ       (
 Línea 10: REGEX                /^-?\d+\.?\d*$/
 Línea 10: PARENTESIS_DER       )
@@ -36,7 +36,7 @@ Línea 11: ADD                  add
 Línea 11: PARENTESIS_IZQ       (
 Línea 11: ID                   dato
 Línea 11: PUNTO                .
-Línea 11: INCLUDE_QUERY        include?
+Línea 11: CONSULTA_INCLUDE     include?
 Línea 11: PARENTESIS_IZQ       (
 Línea 11: CADENA_SIMPLE        .
 Línea 11: PARENTESIS_DER       )
@@ -57,7 +57,7 @@ Línea 15: END                  end
 Línea 17: UNLESS               unless
 Línea 17: ID                   datos
 Línea 17: PUNTO                .
-Línea 17: EMPTY_QUERY          empty?
+Línea 17: CONSULTA_VACIA       empty?
 Línea 18: PUTS                 puts
 Línea 18: CADENA               \n Resultados:
 Línea 19: PUTS                 puts
