@@ -1,0 +1,15 @@
+Análisis sintáctico de: algoritmo1_Paulette_Maldonado.rb
+Usuario: Pauyamal
+Fecha y Hora: 2025-06-29 18:34:52
+==================================================
+Errores sintácticos encontrados:
+- Error de sintaxis en la línea 27, token 'ASIGNA_HASH' ('=>').
+Línea del error: -> rescue => e
+- Error de sintaxis en la línea 29, token 'END' ('end').
+Línea del error: -> end
+- Error de sintaxis en la línea 38, token 'ELSE' ('else').
+Línea del error: -> else
+- Error de sintaxis en la línea 40, token 'END' ('end').
+Línea del error: -> end
+- Error de sintaxis en la línea 48, token 'WHEN' ('when').
+Línea del error: -> when 4

@@ -867,4 +867,4 @@ def realizar_analisis_semantico(nodo, contexto_actual=None):
 if __name__ == '__main__':
     analizar_archivo_ruby("algoritmo1_Paulette_Maldonado.rb", "Pauyamal")
     analizar_archivo_ruby("algoritmo2_Isaac_Criollo.rb", "Izaako04")
-    analizar_archivo_ruby("algoritmo3_Joel_Guamani.rb", "Pauyamal")
+    analizar_archivo_ruby("algoritmo3_Joel_Guamani.rb", "isaiasgh")

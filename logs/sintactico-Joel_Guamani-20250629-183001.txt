@@ -1,0 +1,22 @@
+Análisis sintáctico de: algoritmo3_Joel_Guamani.rb
+Usuario: Joel_Guamani
+Fecha y Hora: 2025-06-29 18:30:01
+==================================================
+Errores sintácticos encontrados:
+- Error de sintaxis en el token 'LLAVE_IZQ' ('{') en la línea 89, columna 70
+- Error de sintaxis en el token 'GETS' ('gets') en la línea 93, columna 241
+- Error de sintaxis en el token 'BEGIN' ('begin') en la línea 97, columna 307
+- Error de sintaxis en el token 'GETS' ('gets') en la línea 99, columna 383
+- Error de sintaxis en el token 'RAISE' ('raise') en la línea 100, columna 417
+- Error de sintaxis en el token 'PARENTESIS_IZQ' ('(') en la línea 100, columna 484
+- Error de sintaxis en el token 'GETS' ('gets') en la línea 103, columna 580
+- Error de sintaxis en el token 'PUTS' ('puts') en la línea 106, columna 693
+- Error de sintaxis en el token 'GETS' ('gets') en la línea 107, columna 763
+- Error de sintaxis en el token 'PARENTESIS_IZQ' ('(') en la línea 108, columna 853
+- Error de sintaxis en el token 'GETS' ('gets') en la línea 111, columna 967
+- Error de sintaxis en el token 'ID' ('reservas') en la línea 114, columna 1125
+- Error de sintaxis en el token 'ASIGNACION' ('=') en la línea 114, columna 1138
+- Error de sintaxis en el token 'END' ('end') en la línea 124, columna 1468
+- Error de sintaxis en el token 'GETS' ('gets') en la línea 128, columna 1559
+- Error de sintaxis en el token 'PUTS' ('puts') en la línea 132, columna 1664
+- Error de sintaxis en el token 'ELSE' ('else') en la línea 137, columna 1940
