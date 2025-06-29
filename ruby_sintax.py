@@ -711,6 +711,51 @@ def verificar_tipo_variable(nombre_variable, tipo_esperado, linea):
 
     return True
 
+#Aporte Paulette Maldonado
+def verificar_tipos_compatibles(valor1, valor2, operador, linea):
+    if isinstance(valor1, str) and valor1 in tabla_variables:
+        valor1 = tabla_variables[valor1]
+    if isinstance(valor2, str) and valor2 in tabla_variables:
+        valor2 = tabla_variables[valor2]
+
+    if isinstance(valor1, tuple):
+        valor1 = evaluar_expresion(valor1)
+    if isinstance(valor2, tuple):
+        valor2 = evaluar_expresion(valor2)
+
+    if valor1 is None or valor2 is None:
+        return False
+
+    if operador in ['+', '-', '*', '/', '**', '%']:
+        if not isinstance(valor1, (int, float)) or not isinstance(valor2, (int, float)):
+            error = f"Error semántico (línea {linea}): Operador '{operador}' requiere números (tipos: {type(valor1).__name__}, {type(valor2).__name__})."
+            errores_semanticos.append(error)
+            return False
+
+    elif operador in ['&&', '||', 'and', 'or']:
+        if not isinstance(valor1, bool) or not isinstance(valor2, bool):
+            error = f"Error semántico (línea {linea}): Operador '{operador}' requiere booleanos."
+            errores_semanticos.append(error)
+            return False
+
+    return True
+
+def verificar_tipo_retorno_funcion(tipo_esperado, valor_retorno, linea):
+    tipo_real = type(valor_retorno).__name__
+
+    tipos = {
+        'numero': (int, float),
+        'cadena': str,
+        'booleano': bool
+    }
+
+    if tipo_esperado in tipos and not isinstance(valor_retorno, tipos[tipo_esperado]):
+        error = f"Error semántico (línea {linea}): Retorno debe ser {tipo_esperado} (es {tipo_real})."
+        errores_semanticos.append(error)
+        return False
+
+    return True
+
 #Aporte Comunitario
 def generar_log_semantico(usuario_git):
     """Genera un archivo de log con errores semánticos."""
@@ -788,9 +833,21 @@ def realizar_analisis_semantico(nodo, contexto_actual=None):
             linea = getattr(valor, 'lineno', 'desconocida')
             verificar_variable_declarada(var, linea)
             tabla_variables[var] = evaluar_expresion(valor)
+
+        elif tipo_nodo == 'operacion_binaria':
+            _, operador, izq, der = nodo
+            linea = getattr(izq, 'lineno', 'desconocida')
+            verificar_tipos_compatibles(izq, der, operador, linea)
+
+        elif tipo_nodo == 'retornar':
+            _, valor = nodo
+            linea = getattr(valor, 'lineno', 'desconocida')
+            verificar_tipo_retorno_funcion('numero', evaluar_expresion(valor), linea)
+
         for hijo in nodo[1:]:
             realizar_analisis_semantico(hijo, contexto_actual)
 
 
 if __name__ == '__main__':
+    analizar_archivo_ruby("algoritmo1_Paulette_Maldonado.rb", "Pauyamal")
     analizar_archivo_ruby("algoritmo2_Isaac_Criollo.rb", "Izaako04")
