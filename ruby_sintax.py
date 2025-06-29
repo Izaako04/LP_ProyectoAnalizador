@@ -756,6 +756,22 @@ def verificar_tipo_retorno_funcion(tipo_esperado, valor_retorno, linea):
 
     return True
 
+#Aporte Joel Guamani
+def verificar_estructuras_control(estructura, contexto, linea):
+    if estructura in ['break', 'next'] and contexto != 'bucle':
+        error = f"Error semántico (línea {linea}): '{estructura}' fuera de un bucle."
+        errores_semanticos.append(error)
+        return False
+    return True
+
+def verificar_alcance_variable(nombre_variable, contexto_actual, linea):
+    contexto_definicion = tabla_variables.get(nombre_variable, {}).get('contexto')
+    if contexto_definicion != contexto_actual:
+        error = f"Error semántico (línea {linea}): Variable '{nombre_variable}' fuera del contexto en que fue definida."
+        errores_semanticos.append(error)
+        return False
+    return True
+
 #Aporte Comunitario
 def generar_log_semantico(usuario_git):
     """Genera un archivo de log con errores semánticos."""
@@ -851,3 +867,4 @@ def realizar_analisis_semantico(nodo, contexto_actual=None):
 if __name__ == '__main__':
     analizar_archivo_ruby("algoritmo1_Paulette_Maldonado.rb", "Pauyamal")
     analizar_archivo_ruby("algoritmo2_Isaac_Criollo.rb", "Izaako04")
+    analizar_archivo_ruby("algoritmo3_Joel_Guamani.rb", "Pauyamal")
