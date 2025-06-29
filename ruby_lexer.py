@@ -13,7 +13,7 @@ reserved = {
     "until": "UNTIL", "for": "FOR", "do": "DO", "begin": "BEGIN",
     "rescue": "RESCUE", "ensure": "ENSURE", "retry": "RETRY",
     "break": "BREAK", "next": "NEXT", "redo": "REDO", "return": "RETURN",
-    "when": "WHEN",
+    "when": "WHEN",'raise': 'RAISE',
 
     # Aporte Joel Guamani
     "yield": "YIELD", "super": "SUPER", "self": "SELF", "nil": "NIL",
@@ -33,6 +33,7 @@ reserved = {
     # Aporte (común o previo, reclasificado para coherencia)
     "true": "TRUE",
     "false": "FALSE",
+
 }
 
 tokens = [
@@ -62,7 +63,7 @@ tokens = [
     'PARENTESIS_IZQ', 'PARENTESIS_DER', 'LLAVE_IZQ', 'LLAVE_DER',
     'CORCHETE_IZQ', 'CORCHETE_DER', 'COMA', 'PUNTO', 'DOS_PUNTOS',
     'TRES_PUNTOS', # Definido explícitamente ahora
-    'PUNTO_COMA', 'INTERROGACION', 'CIRCUMFLEJO', 'PIPE', 'BACKSLASH', 'DOLAR',
+    'PUNTO_COMA', 'INTERROGACION', 'CIRCUMFLEJO', 'PIPE', 'BACKSLASH', 'DOLAR','OPERADOR_ASIGNACION','APPEND',
 ] + list(reserved.values())
 
 # ---------------------------------------------------------------------
@@ -96,11 +97,12 @@ def t_CADENA_SIMPLE(t): # Esta se mantiene igual.
     return t
 
 def t_REGEX(t):
-    r'/(?:[^/\\]|\\.)+/[gimoux]*'
+    r'/[^/]+/[a-z]*'
+    t.value = t.value[1:-1] 
     return t
 
 def t_SIMBOLO(t):
-    r':[a-zA-Z_]\w*|\"[^"]*\"|\'[^\']*\''
+    r':[a-zA-Z_]\w*'
     return t
 
 # Aporte Joel Guamani / Isaac Criollo (Identificadores y Palabras Reservadas - orden de especificidad)
@@ -121,7 +123,7 @@ def t_METODO_EXCLAMACION(t): # Aporte (común)
     return t
 
 def t_METODO_PREGUNTA(t): # Aporte Joel Guamani
-    r'[a-zA-Z_]\w*\?'
+    r'[a-zA-Z_][a-zA-Z0-9_]*\?'
     return t
 
 def t_ID_CLASE(t): # Aporte Joel Guamani
@@ -163,7 +165,6 @@ t_AND_LOGICO = r'&&'
 t_OR_LOGICO = r'\|\|'
 t_TRIPLE_IGUAL = r'==='
 t_ASIGNA_HASH = r'=>'
-
 # Aporte Paulette Maldonado (Operadores simples y delimitadores)
 t_MAS = r'\+'
 t_MENOS = r'-'
@@ -190,10 +191,10 @@ t_CIRCUMFLEJO = r'\^'
 t_PIPE = r'\|'
 t_BACKSLASH = r'\\'
 t_DOLAR = r'\$'
-
+t_OPERADOR_ASIGNACION = r'='
 # Aporte Comun
 t_ignore = ' \t'
-
+t_APPEND = r'<<'
 def t_nuevalinea(t):
     r'\n+'
     t.lexer.lineno += len(t.value)
