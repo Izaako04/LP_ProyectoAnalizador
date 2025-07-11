@@ -9,11 +9,14 @@ ruta_archivos_ruby = "algoritmos"
 tabla_variables = {}
 errores_semanticos = []
 errores_sintacticos = []
+metodos_definidos = {}
+contexto_actual = []
 
 # --- Reglas de Precedencia y Asociatividad ---
 precedence = (
-    ('right', 'IF', 'UNLESS'),
+    ('right', 'IF', 'UNLESS', 'RESCUE'),
     ('right', 'ASIGNACION', 'MAS_ASIGNACION', 'MENOS_ASIGNACION', 'MULT_ASIGNACION', 'DIV_ASIGNACION', 'MOD_ASIGNACION'),
+    ('left', 'INTERROGACION', 'DOS_PUNTOS'),  # Operador ternario
     ('left', 'OR_LOGICO', 'O_SIGNO', 'OR'),
     ('left', 'AND_LOGICO', 'Y_SIGNO', 'AND'),
     ('nonassoc', 'IGUAL', 'DIFERENTE', 'MAYOR_IGUAL', 'MENOR_IGUAL', 'MAYOR_QUE', 'MENOR_QUE', 'NAVE_ESPACIAL', 'TRIPLE_IGUAL'),
@@ -23,6 +26,8 @@ precedence = (
     ('right', 'EXPONENCIACION'),
     ('right', 'UMINUS', 'NOT_LOGICO', 'EXCLAMACION_BAJO', 'NOT'),
     ('left', 'PUNTO'),
+    ('left', 'CORCHETE_IZQ', 'CORCHETE_DER'),
+    ('nonassoc', 'PARENTESIS_IZQ', 'PARENTESIS_DER'),
 )
 
 # --- Definición de la Gramática (Reglas de Producción) ---
@@ -57,6 +62,9 @@ def p_sentencia(p):
               | definicion_clase
               | sentencia_begin_rescue
               | metodo_inicializacion
+              | sentencia_require
+              | sentencia_modificador
+              | llamada_metodo_statement
               | RETURN expresion
               | RETURN
               | BREAK
@@ -76,8 +84,6 @@ def p_sentencia(p):
         p[0] = None
         return
 
-    # La mayoría de las sentencias son ahora expresiones,
-    # así que solo manejamos las palabras clave específicas aquí.
     keyword = p[1]
     if isinstance(keyword, str):
         if keyword == 'return':
@@ -97,9 +103,42 @@ def p_sentencia(p):
         elif keyword == 'raise':
             p[0] = ('raise', p[2])
         else:
-            p[0] = p[1] # Para el resto de no-terminales
+            p[0] = p[1]
     else:
-        p[0] = p[1] # Para 'expresion', etc.
+        p[0] = p[1]
+
+def p_llamada_metodo_statement(p):
+    '''
+    llamada_metodo_statement : ID PARENTESIS_IZQ argumentos_metodo PARENTESIS_DER
+                             | ID argumentos_no_parentesis
+    '''
+    if len(p) == 5:
+        p[0] = ('llamada_metodo', None, p[1], p[3])
+    else:
+        p[0] = ('llamada_metodo', None, p[1], p[2])
+
+def p_argumentos_no_parentesis(p):
+    '''
+    argumentos_no_parentesis : argumento_no_parentesis
+                             | argumentos_no_parentesis COMA argumento_no_parentesis
+    '''
+    if len(p) == 2:
+        p[0] = [p[1]]
+    else:
+        p[0] = p[1] + [p[3]]
+
+def p_argumento_no_parentesis(p):
+    '''
+    argumento_no_parentesis : expresion_comparacion
+    '''
+    p[0] = p[1]
+
+def p_sentencia_require(p):
+    '''
+    sentencia_require : REQUIRE CADENA
+                      | REQUIRE CADENA_SIMPLE
+    '''
+    p[0] = ('require', p[2])
 
 def p_vacio(p):
     '''vacio :'''
@@ -107,81 +146,187 @@ def p_vacio(p):
 
 def p_sentencia_modificador(p):
     '''
-    sentencia : sentencia IF expresion
-              | sentencia UNLESS expresion
+    sentencia_modificador : expresion IF expresion
+                          | expresion UNLESS expresion
     '''
     p[0] = ('modificador_if' if p[2] == 'if' else 'modificador_unless', p[1], p[3])
 
-# --- NUEVA JERARQUÍA DE EXPRESIONES (ROBUSTA) ---
+# --- EXPRESIONES ---
 
 def p_expresion(p):
     '''
-    expresion : llamada
-              | expresion MAS expresion
-              | expresion MENOS expresion
-              | expresion MULTIPLICACION expresion
-              | expresion DIVISION expresion
-              | expresion MODULO expresion
-              | expresion EXPONENCIACION expresion
-              | expresion APPEND expresion
-              | MENOS expresion %prec UMINUS
-              | expresion IGUAL expresion
-              | expresion DIFERENTE expresion
-              | expresion MAYOR_QUE expresion
-              | expresion MENOR_QUE expresion
-              | expresion MAYOR_IGUAL expresion
-              | expresion MENOR_IGUAL expresion
-              | expresion NAVE_ESPACIAL expresion
-              | expresion TRIPLE_IGUAL expresion
-              | expresion AND_LOGICO expresion
-              | expresion OR_LOGICO expresion
-              | expresion Y_SIGNO expresion
-              | expresion O_SIGNO expresion
-              | expresion AND expresion
-              | expresion OR expresion
-              | NOT_LOGICO expresion
-              | EXCLAMACION_BAJO expresion
-              | NOT expresion
-              | expresion RESCUE expresion
-              | PUTS expresion
-              | PRINT expresion
-              | PRINTF expresion
+    expresion : expresion_rescue
+    '''
+    p[0] = p[1]
+
+def p_expresion_rescue(p):
+    '''
+    expresion_rescue : expresion_ternaria
+                     | expresion_ternaria RESCUE expresion_rescue
     '''
     if len(p) == 2:
         p[0] = p[1]
-    elif p[1] in ['puts', 'print', 'printf']:
-        p[0] = ('imprimir', p[1], p[2])
-    elif p[1] in ['!', 'not']:
-        p[0] = ('negacion', p[2])
-    elif p[1] == '-':
-        p[0] = ('unario_menos', p[2])
-    elif p[2] == 'rescue':
+    else:
         p[0] = ('rescue_inline', p[1], p[3])
-    else: # Operación binaria
+
+def p_expresion_ternaria(p):
+    '''
+    expresion_ternaria : expresion_logica
+                       | expresion_logica INTERROGACION expresion_ternaria DOS_PUNTOS expresion_ternaria
+    '''
+    if len(p) == 2:
+        p[0] = p[1]
+    else:
+        p[0] = ('ternario', p[1], p[3], p[5])
+
+def p_expresion_logica(p):
+    '''
+    expresion_logica : expresion_comparacion
+                     | expresion_logica AND_LOGICO expresion_comparacion
+                     | expresion_logica OR_LOGICO expresion_comparacion
+                     | expresion_logica Y_SIGNO expresion_comparacion
+                     | expresion_logica O_SIGNO expresion_comparacion
+                     | expresion_logica AND expresion_comparacion
+                     | expresion_logica OR expresion_comparacion
+    '''
+    if len(p) == 2:
+        p[0] = p[1]
+    else:
         p[0] = ('operacion_binaria', p[2], p[1], p[3])
 
-def p_llamada(p):
+def p_expresion_comparacion(p):
     '''
-    llamada : primario
-            | llamada PUNTO metodo_id
-            | llamada PUNTO metodo_id PARENTESIS_IZQ PARENTESIS_DER
-            | llamada PUNTO metodo_id PARENTESIS_IZQ argumentos_metodo PARENTESIS_DER
-            | llamada CORCHETE_IZQ expresion CORCHETE_DER
-            | llamada bloque_o_do_end
+    expresion_comparacion : expresion_aritmetica
+                          | expresion_comparacion IGUAL expresion_aritmetica
+                          | expresion_comparacion DIFERENTE expresion_aritmetica
+                          | expresion_comparacion MAYOR_QUE expresion_aritmetica
+                          | expresion_comparacion MENOR_QUE expresion_aritmetica
+                          | expresion_comparacion MAYOR_IGUAL expresion_aritmetica
+                          | expresion_comparacion MENOR_IGUAL expresion_aritmetica
+                          | expresion_comparacion NAVE_ESPACIAL expresion_aritmetica
+                          | expresion_comparacion TRIPLE_IGUAL expresion_aritmetica
     '''
     if len(p) == 2:
         p[0] = p[1]
-    elif p[2] == '.':
-        if len(p) == 4:
-            p[0] = ('llamada_metodo', p[1], p[3], [])
-        elif len(p) == 6: 
-            p[0] = ('llamada_metodo', p[1], p[3], [])
+    else:
+        p[0] = ('operacion_binaria', p[2], p[1], p[3])
+
+def p_expresion_aritmetica(p):
+    '''
+    expresion_aritmetica : expresion_termino
+                         | expresion_aritmetica MAS expresion_termino
+                         | expresion_aritmetica MENOS expresion_termino
+                         | expresion_aritmetica APPEND expresion_termino
+    '''
+    if len(p) == 2:
+        p[0] = p[1]
+    else:
+        p[0] = ('operacion_binaria', p[2], p[1], p[3])
+
+def p_expresion_termino(p):
+    '''
+    expresion_termino : expresion_factor
+                      | expresion_termino MULTIPLICACION expresion_factor
+                      | expresion_termino DIVISION expresion_factor
+                      | expresion_termino MODULO expresion_factor
+    '''
+    if len(p) == 2:
+        p[0] = p[1]
+    else:
+        p[0] = ('operacion_binaria', p[2], p[1], p[3])
+
+def p_expresion_factor(p):
+    '''
+    expresion_factor : expresion_unaria
+                     | expresion_factor EXPONENCIACION expresion_unaria
+    '''
+    if len(p) == 2:
+        p[0] = p[1]
+    else:
+        p[0] = ('operacion_binaria', p[2], p[1], p[3])
+
+def p_expresion_unaria(p):
+    '''
+    expresion_unaria : expresion_postfix
+                     | MENOS expresion_unaria %prec UMINUS
+                     | NOT_LOGICO expresion_unaria
+                     | EXCLAMACION_BAJO expresion_unaria
+                     | NOT expresion_unaria
+    '''
+    if len(p) == 2:
+        p[0] = p[1]
+    elif p[1] == '-':
+        p[0] = ('unario_menos', p[2])
+    else:
+        p[0] = ('negacion', p[2])
+
+def p_expresion_postfix(p):
+    '''
+    expresion_postfix : primario
+                      | expresion_postfix PUNTO metodo_id
+                      | expresion_postfix PUNTO metodo_id PARENTESIS_IZQ PARENTESIS_DER
+                      | expresion_postfix PUNTO metodo_id PARENTESIS_IZQ argumentos_metodo PARENTESIS_DER
+                      | expresion_postfix PUNTO NEW
+                      | expresion_postfix PUNTO NEW PARENTESIS_IZQ PARENTESIS_DER
+                      | expresion_postfix PUNTO NEW PARENTESIS_IZQ argumentos_metodo PARENTESIS_DER
+                      | expresion_postfix CORCHETE_IZQ expresion CORCHETE_DER
+                      | expresion_postfix bloque_o_do_end
+                      | llamada_metodo_sin_receptor
+                      | PUTS expresion
+                      | PUTS PARENTESIS_IZQ expresion PARENTESIS_DER
+                      | PRINT expresion
+                      | PRINT PARENTESIS_IZQ expresion PARENTESIS_DER
+                      | PRINTF expresion
+                      | PRINTF PARENTESIS_IZQ expresion PARENTESIS_DER
+                      | RAISE expresion
+                      | RAISE
+    '''
+    if len(p) == 2:
+        p[0] = p[1]
+    elif len(p) == 3:
+        if p[1] in ['puts', 'print', 'printf']:
+            p[0] = ('imprimir', p[1], p[2])
+        elif p[1] == 'raise':
+            p[0] = ('raise', p[2])
         else:
-            p[0] = ('llamada_metodo', p[1], p[3], p[5])
+            p[0] = p[1]  # Para otros casos
+    elif len(p) == 5 and p[1] in ['puts', 'print', 'printf']:
+        p[0] = ('imprimir', p[1], p[3])
+    elif p[2] == '.':
+        if p[3] == 'new':
+            if len(p) == 4:
+                p[0] = ('llamada_metodo', p[1], 'new', [])
+            elif len(p) == 6:
+                p[0] = ('llamada_metodo', p[1], 'new', [])
+            else:
+                p[0] = ('llamada_metodo', p[1], 'new', p[5])
+        else:
+            if len(p) == 4:
+                p[0] = ('llamada_metodo', p[1], p[3], [])
+            elif len(p) == 6:
+                p[0] = ('llamada_metodo', p[1], p[3], [])
+            else:
+                p[0] = ('llamada_metodo', p[1], p[3], p[5])
     elif p[2] == '[':
         p[0] = ('acceso_elemento', p[1], p[3])
     else:
         p[0] = ('expresion_con_bloque', p[1], p[2])
+
+def p_llamada_metodo_sin_receptor(p):
+    '''
+    llamada_metodo_sin_receptor : metodo_id PARENTESIS_IZQ argumentos_metodo PARENTESIS_DER
+                                | metodo_id argumentos_metodo
+                                | metodo_id
+                                | ID_CLASE PARENTESIS_IZQ argumentos_metodo PARENTESIS_DER
+    '''
+    if len(p) == 2:
+        p[0] = ('llamada_metodo', None, p[1], [])
+    elif len(p) == 3:
+        p[0] = ('llamada_metodo', None, p[1], p[2])
+    elif p[2] == '(':
+        p[0] = ('llamada_metodo', None, p[1], p[3])
+    else:
+        p[0] = ('llamada_metodo', None, p[1], p[2])
 
 def p_metodo_id(p):
     '''
@@ -202,8 +347,6 @@ def p_metodo_id(p):
               | MAX
               | MIN
               | SUM
-              | PRINT
-              | PRINTF
               | CONCAT
               | SORT
               | TO_SET
@@ -215,12 +358,16 @@ def p_primario(p):
     primario : literal
              | identificador_variable
              | PARENTESIS_IZQ expresion PARENTESIS_DER
-             | GETS
              | creacion_array
              | creacion_hash
+             | SELF
+             | ID_CLASE
+             | GETS
     '''
     if p[1] == '(':
         p[0] = p[2]
+    elif p[1] == 'gets':
+        p[0] = ('llamada_metodo', None, 'gets', [])
     else:
         p[0] = p[1]
 
@@ -237,9 +384,9 @@ def p_literal(p):
             | SIMBOLO
             | REGEX
     '''
-    p[0] = p[1]
+    p[0] = ('literal', p[1])
 
-# --- FIN DE LA NUEVA JERARQUÍA DE EXPRESIONES ---
+# --- ASIGNACIONES ---
 
 def p_sentencia_asignacion(p):
     '''
@@ -258,9 +405,10 @@ def p_identificador_variable(p):
                            | ID_GLOBAL
                            | ID_INSTANCIA
                            | VARIABLECLASE
-                           | ID_CLASE
     '''
     p[0] = p[1]
+
+# --- ESTRUCTURAS DE DATOS ---
 
 def p_creacion_array(p):
     '''
@@ -278,46 +426,6 @@ def p_elementos_array(p):
         p[0] = [p[1]]
     else:
         p[0] = p[1] + [p[3]]
-
-def evaluar_expresion(nodo):
-    """Evalúa un nodo del AST para obtener su valor concreto."""
-    if not isinstance(nodo, tuple):
-        return nodo
-        
-    tipo = nodo[0]
-    
-    if tipo == 'operacion_binaria':
-        _, op, izq, der = nodo
-        izq_val = evaluar_expresion(izq)
-        der_val = evaluar_expresion(der)
-        
-        if op == '+': return izq_val + der_val
-        if op == '-': return izq_val - der_val
-        if op == '*': return izq_val * der_val
-        if op == '/': return izq_val / der_val
-        if op == '%': return izq_val % der_val
-        if op == '**': return izq_val ** der_val
-        
-    elif tipo == 'comparacion':
-        _, op, izq, der, _ = nodo
-        izq_val = evaluar_expresion(izq)
-        der_val = evaluar_expresion(der)
-        
-        if op == '==': return izq_val == der_val
-        if op == '!=': return izq_val != der_val
-        if op == '>': return izq_val > der_val
-        if op == '<': return izq_val < der_val
-        if op == '>=': return izq_val >= der_val
-        if op == '<=': return izq_val <= der_val
-        
-    elif tipo == 'unario_menos':
-        return -evaluar_expresion(nodo[1])
-        
-    elif tipo == 'negacion':
-        return not evaluar_expresion(nodo[1])
-        
-    return None
-
 
 def p_creacion_hash(p):
     '''
@@ -339,43 +447,58 @@ def p_elementos_hash(p):
 def p_elemento_hash(p):
     '''
     elemento_hash : expresion ASIGNA_HASH expresion
-                  | ID DOS_PUNTOS expresion
+                  | hash_key_symbol DOS_PUNTOS expresion
     '''
-    p[0] = ('par_hash', p[1], p[3])
+    if p[2] == ':':
+        # Sintaxis nueva de Ruby: nombre: valor se convierte en :nombre => valor
+        p[0] = ('par_hash', ':' + str(p[1]), p[3])
+    else:
+        p[0] = ('par_hash', p[1], p[3])
+
+def p_hash_key_symbol(p):
+    '''
+    hash_key_symbol : ID
+                    | SIMBOLO
+    '''
+    p[0] = p[1]
+
+# --- ESTRUCTURAS DE CONTROL ---
 
 def p_sentencia_condicional(p):
     '''
     sentencia_condicional : IF expresion optional_then sentencias END
                           | IF expresion optional_then sentencias ELSE sentencias END
-                          | IF expresion optional_then sentencias CLAUSULAS_ELSIF END
-                          | IF expresion optional_then sentencias CLAUSULAS_ELSIF ELSE sentencias END
+                          | IF expresion optional_then sentencias clausulas_elsif END
+                          | IF expresion optional_then sentencias clausulas_elsif ELSE sentencias END
                           | UNLESS expresion optional_then sentencias END
                           | UNLESS expresion optional_then sentencias ELSE sentencias END
                           | CASE expresion sentencias_when_case END
                           | CASE sentencias_when_case END
     '''
-    # Manejo específico para CASE
     if p[1] == 'case':
-        if len(p) == 5:  # CASE sentencias_when_case END
+        if len(p) == 5:
             p[0] = ('case', None, p[2])
-        else:  # CASE expresion sentencias_when_case END
+        else:
             p[0] = ('case', p[2], p[3])
-    else:
-        # Para IF y UNLESS - simplificado
-        if len(p) == 6:  # IF expresion optional_then sentencias END
+    elif p[1] in ['if', 'unless']:
+        if len(p) == 6:
             p[0] = ('condicional', p[1], p[2], p[4], None)
-        elif len(p) == 8:  # IF expresion optional_then sentencias ELSE sentencias END
+        elif len(p) == 8:
             p[0] = ('condicional', p[1], p[2], p[4], p[6])
+        elif len(p) == 7:
+            p[0] = ('condicional', p[1], p[2], p[4], p[5])
+        else:
+            p[0] = ('condicional', p[1], p[2], p[4], p[5], p[7])
 
 def p_optional_then(p):
     '''optional_then : THEN
                      | vacio'''
     pass
 
-def p_CLAUSULAS_ELSIF(p):
+def p_clausulas_elsif(p):
     '''
-    CLAUSULAS_ELSIF : ELSIF expresion optional_then sentencias
-                    | CLAUSULAS_ELSIF ELSIF expresion optional_then sentencias
+    clausulas_elsif : ELSIF expresion optional_then sentencias
+                    | clausulas_elsif ELSIF expresion optional_then sentencias
     '''
     if len(p) == 5:
         p[0] = [('sino_si', p[2], p[4])]
@@ -384,51 +507,76 @@ def p_CLAUSULAS_ELSIF(p):
 
 def p_sentencias_when_case(p):
     '''
-    sentencias_when_case : lista_clausulas_when
-                         | lista_clausulas_when ELSE sentencias
+    sentencias_when_case : clausula_when
+                         | sentencias_when_case clausula_when
+                         | sentencias_when_case clausula_when ELSE sentencias
+                         | clausulas_when ELSE sentencias
     '''
     if len(p) == 2:
-        # Solo una lista de cláusulas 'when'
-        p[0] = p[1]
+        p[0] = [p[1]]
+    elif len(p) == 3:
+        p[0] = p[1] + [p[2]]
+    elif p[3] == 'else':
+        p[0] = p[1] + [p[2], ('rama_sino', p[4])]
     else:
-        # Lista de 'when' seguida por un 'else'
         p[0] = p[1] + [('rama_sino', p[3])]
 
-def p_lista_clausulas_when(p):
+def p_clausulas_when(p):
     '''
-    lista_clausulas_when : clausula_when
-                         | lista_clausulas_when clausula_when
+    clausulas_when : clausula_when
+                   | clausulas_when clausula_when
     '''
     if len(p) == 2:
-        # Es la primera cláusula 'when' que se encuentra
         p[0] = [p[1]]
     else:
-        # Se agrega otra cláusula 'when' a la lista existente
         p[0] = p[1] + [p[2]]
 
 def p_clausula_when(p):
     '''
-    clausula_when : WHEN expresion sentencias
+    clausula_when : WHEN lista_expresiones_when THEN sentencias
+                  | WHEN lista_expresiones_when sentencias
     '''
-    # Crea la tupla para una única cláusula 'when'
-    p[0] = ('cuando', p[2], p[3])
+    if len(p) == 5:
+        p[0] = ('cuando', p[2], p[4])
+    else:
+        p[0] = ('cuando', p[2], p[3])
 
-def p_bucle_while(p):
+def p_lista_expresiones_when(p):
+    '''
+    lista_expresiones_when : expresion
+                           | lista_expresiones_when COMA expresion
+    '''
+    if len(p) == 2:
+        p[0] = [p[1]]
+    else:
+        p[0] = p[1] + [p[3]]
+
+# --- BUCLES ---
+
+def p_sentencia_bucle(p):
     '''
     sentencia_bucle : WHILE expresion optional_do sentencias END
+                    | UNTIL expresion optional_do sentencias END
+                    | FOR ID IN expresion optional_do sentencias END
+                    | LOOP bloque_o_do_end
+                    | expresion_postfix PUNTO EACH bloque_o_do_end
     '''
-    p[0] = ('bucle_mientras', p[2], p[4])
+    if p[1] == 'while':
+        p[0] = ('bucle_mientras', p[2], p[4])
+    elif p[1] == 'until':
+        p[0] = ('bucle_hasta', p[2], p[4])
+    elif p[1] == 'for':
+        p[0] = ('bucle_for', p[2], p[4], p[6])
+    elif p[1] == 'loop':
+        p[0] = ('bucle_infinito', p[2])
+    else:
+        # Para entrada.each
+        p[0] = ('llamada_metodo', p[1], 'each', [], p[4])
 
 def p_optional_do(p):
     '''optional_do : DO
                    | vacio'''
     pass
-
-def p_bucle_general(p):
-    '''
-    sentencia_bucle : LOOP bloque_o_do_end
-    '''
-    p[0] = ('bucle_infinito', p[2])
 
 def p_bloque_o_do_end(p):
     '''
@@ -438,10 +586,15 @@ def p_bloque_o_do_end(p):
                     | LLAVE_IZQ sentencias LLAVE_DER
     '''
     if p[1] == 'do':
-        p[0] = ('bloque', p[3] if len(p) == 6 else [], p[5] if len(p) == 6 else p[2])
+        if len(p) == 7:
+            p[0] = ('bloque', p[3], p[5])
+        else:
+            p[0] = ('bloque', [], p[2])
     else:
-        p[0] = ('bloque', p[3] if len(p) == 6 else [], p[5] if len(p) == 6 else p[2])
-
+        if len(p) == 7:
+            p[0] = ('bloque', p[3], p[5])
+        else:
+            p[0] = ('bloque', [], p[2])
 
 def p_argumentos_bloque(p):
     '''
@@ -453,6 +606,8 @@ def p_argumentos_bloque(p):
     else:
         p[0] = p[1] + [p[3]]
 
+# --- MÉTODOS Y CLASES ---
+
 def p_definicion_metodo(p):
     '''
     definicion_metodo : DEF ID PARENTESIS_IZQ lista_parametros PARENTESIS_DER sentencias END
@@ -461,14 +616,20 @@ def p_definicion_metodo(p):
                       | DEF SELF PUNTO ID sentencias END
     '''
     if p[2] == 'self':
-        p[0] = ('def_self', p[4], p[6] if len(p) == 9 else [], p[8] if len(p) == 9 else p[5])
+        if len(p) == 10:
+            p[0] = ('def_self', p[4], p[6], p[8])
+        else:
+            p[0] = ('def_self', p[4], [], p[5])
     else:
-        p[0] = ('def', p[2], p[4] if len(p) == 8 else [], p[6] if len(p) == 8 else p[3])
+        if len(p) == 8:
+            p[0] = ('def', p[2], p[4], p[6])
+        else:
+            p[0] = ('def', p[2], [], p[3])
 
 def p_lista_parametros(p):
     '''
-    lista_parametros : ID
-                     | lista_parametros COMA ID
+    lista_parametros : parametro
+                     | lista_parametros COMA parametro
                      | vacio
     '''
     if len(p) == 2:
@@ -476,10 +637,23 @@ def p_lista_parametros(p):
     else:
         p[0] = p[1] + [p[3]] if len(p) > 2 else []
 
+def p_parametro(p):
+    '''
+    parametro : ID
+              | ID ASIGNACION expresion
+              | MULTIPLICACION ID
+    '''
+    if len(p) == 2:
+        p[0] = ('parametro', p[1])
+    elif len(p) == 4:
+        p[0] = ('parametro_default', p[1], p[3])
+    else:
+        p[0] = ('parametro_splat', p[2])
+
 def p_argumentos_metodo(p):
     '''
-    argumentos_metodo : expresion
-                      | argumentos_metodo COMA expresion
+    argumentos_metodo : argumento
+                      | argumentos_metodo COMA argumento
                       | vacio
     '''
     if len(p) == 2:
@@ -489,15 +663,29 @@ def p_argumentos_metodo(p):
     else:
         p[0] = []
 
+def p_argumento(p):
+    '''
+    argumento : expresion
+              | MULTIPLICACION expresion
+    '''
+    if len(p) == 2:
+        p[0] = p[1]
+    else:
+        p[0] = ('splat', p[2])
+
 def p_definicion_clase(p):
     '''
     definicion_clase : CLASS ID cuerpo_clase END
                      | CLASS ID MENOR_QUE ID cuerpo_clase END
+                     | MODULE ID cuerpo_clase END
     '''
-    if len(p) == 5:
-        p[0] = ('clase', p[2], None, p[3])
+    if p[1] == 'class':
+        if len(p) == 5:
+            p[0] = ('clase', p[2], None, p[3])
+        else:
+            p[0] = ('clase', p[2], p[4], p[5])
     else:
-        p[0] = ('clase', p[2], p[4], p[5])
+        p[0] = ('modulo', p[2], p[3])
 
 def p_cuerpo_clase(p):
     '''
@@ -516,7 +704,8 @@ def p_metodo_inicializacion(p):
     else:
         p[0] = ('inicializar', [], p[3])
 
-# CORRECCIÓN PRINCIPAL: Manejo completo de begin-rescue-end
+# --- BEGIN-RESCUE-END ---
+
 def p_sentencia_begin_rescue(p):
     '''
     sentencia_begin_rescue : BEGIN sentencias rescue_clauses END
@@ -524,14 +713,14 @@ def p_sentencia_begin_rescue(p):
                            | BEGIN sentencias ensure_clause END
                            | BEGIN sentencias END
     '''
-    if len(p) == 5:  # BEGIN sentencias END
+    if len(p) == 4:
         p[0] = ('begin', p[2], [], None)
-    elif len(p) == 6:  # BEGIN sentencias rescue_clauses END o BEGIN sentencias ensure_clause END
+    elif len(p) == 5:
         if isinstance(p[3], list) and p[3] and p[3][0][0] == 'rescue':
             p[0] = ('begin', p[2], p[3], None)
         else:
             p[0] = ('begin', p[2], [], p[3])
-    else:  # BEGIN sentencias rescue_clauses ensure_clause END
+    else:
         p[0] = ('begin', p[2], p[3], p[4])
 
 def p_rescue_clauses(p):
@@ -547,24 +736,44 @@ def p_rescue_clauses(p):
 def p_rescue_clause(p):
     '''
     rescue_clause : RESCUE ASIGNA_HASH ID sentencias
+                  | RESCUE ASIGNA_HASH ID
                   | RESCUE ID_CLASE ASIGNA_HASH ID sentencias
+                  | RESCUE ID_CLASE ASIGNA_HASH ID
                   | RESCUE ID_CLASE sentencias
+                  | RESCUE ID_CLASE
                   | RESCUE ID sentencias
+                  | RESCUE ID
                   | RESCUE sentencias
+                  | RESCUE
     '''
-    if len(p) == 5:
+    # Determinar qué elementos tenemos
+    if len(p) == 2:
+        # Solo RESCUE
+        p[0] = ('rescue', None, None, [])
+    elif len(p) == 3:
         if p[2] == '=>':
-            # rescue => variable sentencias
+            # Error: rescue => sin variable
+            p[0] = ('rescue', None, None, [])
+        else:
+            # RESCUE sentencias o RESCUE ID_CLASE/ID
+            p[0] = ('rescue', None, None, p[2])
+    elif len(p) == 4:
+        if p[2] == '=>':
+            # RESCUE => variable
+            p[0] = ('rescue', None, p[3], [])
+        else:
+            # RESCUE tipo sentencias
+            p[0] = ('rescue', p[2], None, p[3])
+    elif len(p) == 5:
+        if p[2] == '=>':
+            # RESCUE => variable sentencias
             p[0] = ('rescue', None, p[3], p[4])
         else:
-            # rescue ExceptionClass sentencias o rescue variable sentencias
-            p[0] = ('rescue', p[2], None, p[3])
-    elif len(p) == 6:
-        # rescue ExceptionClass => variable sentencias
-        p[0] = ('rescue', p[2], p[4], p[5])
+            # RESCUE tipo => variable
+            p[0] = ('rescue', p[2], p[4], [])
     else:
-        # rescue sentencias
-        p[0] = ('rescue', None, None, p[2])
+        # RESCUE tipo => variable sentencias
+        p[0] = ('rescue', p[2], p[4], p[5])
 
 def p_ensure_clause(p):
     '''
@@ -572,45 +781,7 @@ def p_ensure_clause(p):
     '''
     p[0] = ('ensure', p[2])
 
-def p_clausulas_rescue_opcional(p):
-    '''
-    clausulas_rescue_opcional : clausula_rescue clausulas_rescue_opcional
-                              | clausula_ensure
-                              | vacio
-    '''
-    if len(p) == 2:
-        p[0] = [p[1]] if p[1] else []
-    elif len(p) == 3:
-        p[0] = [p[1]] + p[2] if p[1] else p[2]
-    else:
-        p[0] = []
-
-def p_clausula_rescue(p):
-    '''
-    clausula_rescue : RESCUE ID ASIGNA_HASH ID sentencias
-                    | RESCUE ASIGNA_HASH ID sentencias
-                    | RESCUE ID_CLASE sentencias
-                    | RESCUE ID sentencias
-                    | RESCUE sentencias
-    '''
-    if len(p) == 6:
-        # Corresponde a: RESCUE ID ASIGNA_HASH ID sentencias
-        p[0] = ('captura_excepcion', p[2], p[4], p[5])
-    elif len(p) == 5:
-        # Corresponde a: RESCUE ASIGNA_HASH ID sentencias
-        p[0] = ('captura_excepcion', None, p[3], p[4])
-    elif len(p) == 4:
-        # Corresponde a: RESCUE ID_CLASE sentencias o RESCUE ID sentencias
-        p[0] = ('captura_excepcion', p[2], None, p[3])
-    elif len(p) == 3:
-        # Corresponde a: RESCUE sentencias
-        p[0] = ('captura_excepcion', None, None, p[2])
-
-def p_clausula_ensure(p):
-    '''
-    clausula_ensure : ENSURE sentencias
-    '''
-    p[0] = ('asegurar', p[2])
+# --- MANEJO DE ERRORES ---
 
 def p_error(p):
     global errores_sintacticos
@@ -624,63 +795,62 @@ def p_error(p):
                      f"Línea del error: -> {line_content.strip()}")
         print(error_msg)
         errores_sintacticos.append(error_msg)
+        
+        # Intentar recuperarse del error
+        parser.errok()
     else:
         error_msg = "Error de sintaxis en EOF (fin de archivo inesperado)."
         print(error_msg)
         errores_sintacticos.append(error_msg)
 
-# --- Construcción del Parser y Ejecución ---
+# --- Funciones auxiliares ---
 
-parser = yacc.yacc(debug=True)
+def evaluar_expresion(nodo):
+    """Evalúa un nodo del AST para obtener su valor concreto."""
+    if not isinstance(nodo, tuple):
+        return nodo
+        
+    tipo = nodo[0]
+    
+    if tipo == 'operacion_binaria':
+        _, op, izq, der = nodo
+        izq_val = evaluar_expresion(izq)
+        der_val = evaluar_expresion(der)
+        
+        try:
+            if op == '+': return izq_val + der_val
+            if op == '-': return izq_val - der_val
+            if op == '*': return izq_val * der_val
+            if op == '/': return izq_val / der_val
+            if op == '%': return izq_val % der_val
+            if op == '**': return izq_val ** der_val
+            if op == '==': return izq_val == der_val
+            if op == '!=': return izq_val != der_val
+            if op == '>': return izq_val > der_val
+            if op == '<': return izq_val < der_val
+            if op == '>=': return izq_val >= der_val
+            if op == '<=': return izq_val <= der_val
+        except:
+            return None
+            
+    elif tipo == 'unario_menos':
+        val = evaluar_expresion(nodo[1])
+        return -val if val is not None else None
+        
+    elif tipo == 'negacion':
+        val = evaluar_expresion(nodo[1])
+        return not val if val is not None else None
+        
+    elif tipo == 'ternario':
+        cond = evaluar_expresion(nodo[1])
+        if cond:
+            return evaluar_expresion(nodo[2])
+        else:
+            return evaluar_expresion(nodo[3])
+            
+    return None
 
-def analizar_archivo_ruby(nombre_archivo, usuario_git):
-    os.makedirs(ruta_carpeta_logs, exist_ok=True)
-    ruta_completa_archivo = os.path.join(ruta_archivos_ruby, nombre_archivo)
-
-    global errores_sintacticos
-    errores_sintacticos = []
-    lexer.lineno = 1
-
-    try:
-        with open(ruta_completa_archivo, 'r', encoding='utf-8') as f:
-            codigo = f.read()
-        print(f"\n--- Analizando sintácticamente: {nombre_archivo} (Usuario: {usuario_git}) ---")
-        arbol_sintactico = parser.parse(codigo, lexer=lexer)
-
-        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        nombre_archivo_log = f"sintactico-{usuario_git}-{timestamp}.txt"
-        ruta_archivo_log = os.path.join(ruta_carpeta_logs, nombre_archivo_log)
-
-        with open(ruta_archivo_log, 'w', encoding='utf-8') as archivo_log:
-            archivo_log.write(f"Análisis sintáctico de: {nombre_archivo}\n")
-            archivo_log.write(f"Usuario: {usuario_git}\n")
-            archivo_log.write(f"Fecha y Hora: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            archivo_log.write("="*50 + "\n")
-
-            if errores_sintacticos:
-                archivo_log.write("Errores sintácticos encontrados:\n")
-                for error in errores_sintacticos:
-                    archivo_log.write(f"- {error}\n")
-                print(f"Análisis completado con errores. Detalles en: {ruta_archivo_log}")
-            else:
-                archivo_log.write("No se encontraron errores sintácticos.\n")
-                if arbol_sintactico:
-                    archivo_log.write("\n--- Árbol de Sintaxis Abstracta (AST) ---\n")
-                    import json
-                    # Usamos un pretty print para el AST
-                    archivo_log.write(json.dumps(arbol_sintactico, indent=2))
-                print(f"Análisis sintáctico exitoso. Log en: {ruta_archivo_log}")
-
-    except FileNotFoundError:
-        print(f"Error: El archivo {ruta_completa_archivo} no fue encontrado.")
-    except Exception as e:
-        print(f"Ocurrió un error inesperado al leer o analizar el archivo: {e}")
-        import traceback
-        traceback.print_exc()
-
-# Funciones de verificación semánticas
-
-# --- Analizador Semántico ---
+# --- Análisis Semántico ---
 
 #Aporte Isaac Criollo
 def verificar_variable_declarada(nombre_variable, linea):
@@ -772,11 +942,18 @@ def verificar_alcance_variable(nombre_variable, contexto_actual, linea):
         return False
     return True
 
-#Aporte Comunitario
+def verificar_metodo_definido(nombre_metodo, linea):
+    if nombre_metodo not in metodos_definidos:
+        error = f"Error semántico (línea {linea}): Método '{nombre_metodo}' no definido."
+        errores_semanticos.append(error)
+        return False
+    return True
+
 def generar_log_semantico(usuario_git):
     """Genera un archivo de log con errores semánticos."""
     if not errores_semanticos:
         print("No se encontraron errores semánticos.")
+        return
 
     os.makedirs(ruta_carpeta_logs, exist_ok=True)
     fecha_hora = datetime.datetime.now().strftime("%d%m%Y-%Hh%M")
@@ -792,20 +969,132 @@ def generar_log_semantico(usuario_git):
 
     print(f"Log de errores semánticos generado: {ruta_archivo}")
 
+def realizar_analisis_semantico(nodo, contexto='global'):
+    """Realiza análisis semántico del AST."""
+    if nodo is None:
+        return
+        
+    if isinstance(nodo, list):
+        for item in nodo:
+            realizar_analisis_semantico(item, contexto)
+        return
+        
+    if not isinstance(nodo, tuple):
+        return
+        
+    tipo_nodo = nodo[0]
+    
+    if tipo_nodo == 'asignacion':
+        _, operador, var, valor = nodo
+        tabla_variables[var] = {'tipo': 'variable', 'valor': valor, 'contexto': contexto}
+        realizar_analisis_semantico(valor, contexto)
+        
+    elif tipo_nodo == 'def':
+        _, nombre, params, cuerpo = nodo
+        metodos_definidos[nombre] = {'params': params, 'cuerpo': cuerpo}
+        realizar_analisis_semantico(cuerpo, f'metodo_{nombre}')
+        
+    elif tipo_nodo == 'clase':
+        _, nombre, padre, cuerpo = nodo
+        realizar_analisis_semantico(cuerpo, f'clase_{nombre}')
+        
+    elif tipo_nodo == 'llamada_metodo':
+        # Puede tener 4 o 5 elementos (con bloque opcional)
+        if len(nodo) == 4:
+            _, receptor, metodo, args = nodo
+            bloque = None
+        else:
+            _, receptor, metodo, args, bloque = nodo
+            
+        # Solo verificar si el método es local (no tiene receptor)
+        if receptor is None and metodo not in ['puts', 'print', 'printf', 'gets', 'require', 'split', 'each', 'new']:
+            verificar_metodo_definido(metodo, 0)
+            
+        realizar_analisis_semantico(receptor, contexto)
+        for arg in args:
+            realizar_analisis_semantico(arg, contexto)
+        if bloque:
+            realizar_analisis_semantico(bloque, contexto)
+            
+    elif tipo_nodo == 'operacion_binaria':
+        _, op, izq, der = nodo
+        realizar_analisis_semantico(izq, contexto)
+        realizar_analisis_semantico(der, contexto)
+        
+    elif tipo_nodo in ['bucle_mientras', 'bucle_hasta', 'bucle_for', 'bucle_infinito']:
+        for parte in nodo[1:]:
+            realizar_analisis_semantico(parte, 'bucle')
+            
+    elif tipo_nodo == 'condicional':
+        for parte in nodo[1:]:
+            realizar_analisis_semantico(parte, contexto)
+            
+    elif tipo_nodo == 'bloque':
+        _, params, cuerpo = nodo
+        # Los parámetros del bloque se agregan al contexto local
+        for param in params:
+            tabla_variables[param] = {'tipo': 'parametro_bloque', 'contexto': contexto}
+        realizar_analisis_semantico(cuerpo, contexto)
+        
+    elif tipo_nodo == 'modificador_if' or tipo_nodo == 'modificador_unless':
+        _, sentencia, condicion = nodo
+        realizar_analisis_semantico(sentencia, contexto)
+        realizar_analisis_semantico(condicion, contexto)
+        
+    elif tipo_nodo == 'ternario':
+        _, condicion, si_verdadero, si_falso = nodo
+        realizar_analisis_semantico(condicion, contexto)
+        realizar_analisis_semantico(si_verdadero, contexto)
+        realizar_analisis_semantico(si_falso, contexto)
+        
+    elif tipo_nodo == 'imprimir':
+        _, metodo, expresion = nodo
+        realizar_analisis_semantico(expresion, contexto)
+        
+    elif tipo_nodo in ['romper', 'siguiente']:
+        verificar_estructuras_control(tipo_nodo.replace('romper', 'break').replace('siguiente', 'next'), contexto, 0)
+        if len(nodo) > 1 and nodo[1]:
+            realizar_analisis_semantico(nodo[1], contexto)
+            
+    elif tipo_nodo == 'require':
+        pass  # No necesita análisis semántico adicional
+        
+    elif tipo_nodo == 'expresion_con_bloque':
+        _, expresion, bloque = nodo
+        realizar_analisis_semantico(expresion, contexto)
+        realizar_analisis_semantico(bloque, contexto)
+        
+    else:
+        # Para otros tipos de nodos, analizar recursivamente sus hijos
+        for hijo in nodo[1:]:
+            if isinstance(hijo, (list, tuple)):
+                realizar_analisis_semantico(hijo, contexto)
+
+# --- Construcción del Parser ---
+
+parser = yacc.yacc(debug=True)
 
 def analizar_archivo_ruby(nombre_archivo, usuario_git):
+    """Analiza sintáctica y semánticamente un archivo Ruby."""
     os.makedirs(ruta_carpeta_logs, exist_ok=True)
     ruta_completa_archivo = os.path.join(ruta_archivos_ruby, nombre_archivo)
 
     global errores_sintacticos, errores_semanticos
     errores_sintacticos = []
     errores_semanticos = []
-    tabla_variables.clear()  # Limpiar tabla antes del análisis
+    tabla_variables.clear()
+    metodos_definidos.clear()
 
     try:
         with open(ruta_completa_archivo, 'r', encoding='utf-8') as f:
             codigo = f.read()
-        print(f"\n--- Analizando sintácticamente: {nombre_archivo} (Usuario: {usuario_git}) ---")
+            
+        print(f"\n--- Analizando: {nombre_archivo} (Usuario: {usuario_git}) ---")
+        
+        # Reiniciar lexer
+        lexer.lineno = 1
+        
+        # Análisis sintáctico
         arbol_sintactico = parser.parse(codigo, lexer=lexer)
 
         # Generar log sintáctico
@@ -826,45 +1115,38 @@ def analizar_archivo_ruby(nombre_archivo, usuario_git):
                 print(f"Errores sintácticos detectados. Ver: {ruta_archivo_log_sintactico}")
             else:
                 archivo_log.write("No se encontraron errores sintácticos.\n")
+                archivo_log.write("\n--- Árbol de Sintaxis Abstracta (AST) ---\n")
+                import json
+                
+                def serializar_ast(nodo):
+                    """Convierte el AST a un formato serializable en JSON."""
+                    if isinstance(nodo, (str, int, float, bool, type(None))):
+                        return nodo
+                    elif isinstance(nodo, list):
+                        return [serializar_ast(item) for item in nodo]
+                    elif isinstance(nodo, tuple):
+                        return [serializar_ast(item) for item in nodo]
+                    else:
+                        return str(nodo)
+                
+                ast_serializable = serializar_ast(arbol_sintactico)
+                archivo_log.write(json.dumps(ast_serializable, indent=2, ensure_ascii=False))
                 print(f"Análisis sintáctico exitoso. Log en: {ruta_archivo_log_sintactico}")
 
-        # Realizar análisis semántico
-        realizar_analisis_semantico(arbol_sintactico)
-        
-        # Generar log semántico
-        generar_log_semantico(usuario_git)
+            realizar_analisis_semantico(arbol_sintactico)
+            generar_log_semantico(usuario_git)
 
     except FileNotFoundError:
         print(f"Error: El archivo {ruta_completa_archivo} no fue encontrado.")
     except Exception as e:
         print(f"Ocurrió un error inesperado al leer o analizar el archivo: {e}")
+        import traceback
+        traceback.print_exc()
 
-
-def realizar_analisis_semantico(nodo, contexto_actual=None):
-    if isinstance(nodo, tuple):
-        tipo_nodo = nodo[0]
-
-        if tipo_nodo == 'asignacion':
-            _, operador, var, valor = nodo
-            linea = getattr(valor, 'lineno', 'desconocida')
-            verificar_variable_declarada(var, linea)
-            tabla_variables[var] = evaluar_expresion(valor)
-
-        elif tipo_nodo == 'operacion_binaria':
-            _, operador, izq, der = nodo
-            linea = getattr(izq, 'lineno', 'desconocida')
-            verificar_tipos_compatibles(izq, der, operador, linea)
-
-        elif tipo_nodo == 'retornar':
-            _, valor = nodo
-            linea = getattr(valor, 'lineno', 'desconocida')
-            verificar_tipo_retorno_funcion('numero', evaluar_expresion(valor), linea)
-
-        for hijo in nodo[1:]:
-            realizar_analisis_semantico(hijo, contexto_actual)
-
+# --- Main ---
 
 if __name__ == '__main__':
+    # Pruebas
     analizar_archivo_ruby("algoritmo1_Paulette_Maldonado.rb", "Pauyamal")
     analizar_archivo_ruby("algoritmo2_Isaac_Criollo.rb", "Izaako04")
     analizar_archivo_ruby("algoritmo3_Joel_Guamani.rb", "isaiasgh")

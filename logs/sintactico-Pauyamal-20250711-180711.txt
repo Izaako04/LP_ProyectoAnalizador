@@ -1,0 +1,18 @@
+Análisis sintáctico de: algoritmo1_Paulette_Maldonado.rb
+Usuario: Pauyamal
+Fecha y Hora: 2025-07-11 18:07:11
+==================================================
+Errores sintácticos encontrados:
+- Error de sintaxis en la línea 24, token 'DOS_PUNTOS' (':').
+Línea del error: -> producto = {nombre: nombre, precio: precio, stock: stock }
+- Error de sintaxis en la línea 24, token 'ID' ('precio').
+Línea del error: -> producto = {nombre: nombre, precio: precio, stock: stock }
+- Error de sintaxis en la línea 27, token 'ASIGNA_HASH' ('=>').
+Línea del error: -> rescue => e
+- Error de sintaxis en la línea 31, token 'WHEN' ('when').
+Línea del error: -> when 2
+- Error de sintaxis en la línea 42, token 'WHEN' ('when').
+Línea del error: -> when 3
+- Error de sintaxis en la línea 48, token 'WHEN' ('when').
+Línea del error: -> when 4
+- Error de sintaxis en EOF (fin de archivo inesperado).

@@ -21,7 +21,7 @@ def gestion_inventario
                 stock = Integer(gets) rescue nil
                 raise "Stock debe ser entero" if stock.nil?
                 
-                producto = { nombre: nombre, precio: precio, stock: stock }
+                producto = {nombre: nombre, precio: precio, stock: stock }
                 inventario << producto
                 puts "Producto añadido: #{producto[:nombre]}"
             rescue => e
@@ -31,18 +31,18 @@ def gestion_inventario
         when 2
             puts "Buscar por nombre:"
             busqueda = gets.strip.downcase
-            resultados = inventario.select { |p| p[:nombre].downcase.include?(busqueda) }
+            resultados = inventario.select {|p| p[:nombre].downcase.include?(busqueda) }
             
             if resultados.empty?
                 puts "No se encontraron productos."
             else
-                resultados.each { |p| puts "#{p[:nombre]} | $#{p[:precio]} | Stock: #{p[:stock]}" }
+                resultados.each {|p| puts "#{p[:nombre]} | $#{p[:precio]} | Stock: #{p[:stock]}" }
             end
             
         when 3
             puts "Eliminar por nombre:"
             nombre = gets.strip
-            inventario.reject! { |p| p[:nombre].downcase == nombre.downcase }
+            inventario.reject! {|p| p[:nombre].downcase == nombre.downcase }
             puts "Producto eliminado."
             
         when 4
