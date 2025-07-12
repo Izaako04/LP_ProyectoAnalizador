@@ -1,0 +1,83 @@
+Análisis sintáctico de: alg1_Joel_Guamani.rb
+Usuario: isaiasgh
+Fecha y Hora: 2025-07-11 23:25:36
+==================================================
+No se encontraron errores sintácticos.
+
+--- Árbol de Sintaxis Abstracta (AST) ---
+[
+  [
+    "asignacion",
+    "=",
+    "persona",
+    [
+      "hash",
+      [
+        [
+          "par_hash",
+          ":nombre",
+          [
+            "literal",
+            "Luis"
+          ]
+        ],
+        [
+          "par_hash",
+          ":edad",
+          [
+            "literal",
+            25
+          ]
+        ]
+      ]
+    ]
+  ],
+  [
+    "condicional",
+    "if",
+    [
+      "llamada_metodo",
+      null,
+      "persona",
+      [
+        [
+          "operacion_binaria",
+          ">=",
+          [
+            "arreglo",
+            [
+              [
+                "literal",
+                ":edad"
+              ]
+            ]
+          ],
+          [
+            "literal",
+            18
+          ]
+        ]
+      ]
+    ],
+    [
+      [
+        "imprimir",
+        "puts",
+        [
+          "literal",
+          "#{persona[:nombre]} es mayor de edad."
+        ]
+      ]
+    ],
+    [
+      [
+        "imprimir",
+        "puts",
+        [
+          "literal",
+          "#{persona[:nombre]} es menor de edad."
+        ]
+      ]
+    ]
+  ]
+]

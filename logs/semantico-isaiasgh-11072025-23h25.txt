@@ -1,0 +1,5 @@
+Errores semánticos - Usuario: isaiasgh
+Fecha: 2025-07-11 23:25:36
+==================================================
+Error semántico (línea 2): Método 'persona' no definido.
+Error semántico (línea 2): Operador '>=' requiere números (tipos: arreglo_simbolo, Integer).

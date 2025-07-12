@@ -1,0 +1,7 @@
+Análisis sintáctico de: alg1_Paulette_Maldonado.rb
+Usuario: Pauyamal
+Fecha y Hora: 2025-07-11 23:25:36
+==================================================
+Errores sintácticos encontrados:
+- Error de sintaxis en la línea 8, token 'ASIGNACION' ('=').
+Línea del error: -> suma = suma + num

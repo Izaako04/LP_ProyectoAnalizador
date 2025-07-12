@@ -786,18 +786,36 @@ def p_ensure_clause(p):
 def p_error(p):
     global errores_sintacticos
     if p:
+        # Buscar contexto del error
         start_pos = p.lexer.lexdata.rfind('\n', 0, p.lexpos) + 1
         end_pos = p.lexer.lexdata.find('\n', p.lexpos)
-        if end_pos == -1: end_pos = len(p.lexer.lexdata)
+        if end_pos == -1: 
+            end_pos = len(p.lexer.lexdata)
         line_content = p.lexer.lexdata[start_pos:end_pos]
         
-        error_msg = (f"Error de sintaxis en la línea {p.lineno}, token '{p.type}' ('{p.value}').\n"
-                     f"Línea del error: -> {line_content.strip()}")
+        # Construir mensaje de error
+        error_msg = f"Error de sintaxis en la línea {p.lineno}, token '{p.type}' ('{p.value}').\n"
+        
+        # Detectar errores específicos basados en el contexto
+        if hasattr(parser, 'symstack'):
+            stack_symbols = [s.type for s in parser.symstack[-5:] if hasattr(s, 'type')]
+            
+            # Caso especial: for sin in
+            if 'FOR' in stack_symbols and 'ID' in stack_symbols and p.type == 'ID':
+                # Verificar si falta 'in'
+                if 'IN' not in stack_symbols:
+                    error_msg += "Posible causa: falta la palabra clave 'in' en el bucle for.\n"
+        
+        error_msg += f"Línea del error: -> {line_content.strip()}"
+        
         print(error_msg)
         errores_sintacticos.append(error_msg)
         
         # Intentar recuperarse del error
         parser.errok()
+        
+        # Avanzar al siguiente token
+        parser.token()
     else:
         error_msg = "Error de sintaxis en EOF (fin de archivo inesperado)."
         print(error_msg)
@@ -881,6 +899,93 @@ def verificar_tipo_variable(nombre_variable, tipo_esperado, linea):
 
     return True
 
+def obtener_tipo_expresion(nodo, contexto='global'):
+    """Determina el tipo de una expresión."""
+    if not isinstance(nodo, tuple):
+        # Literal directo
+        if isinstance(nodo, int):
+            return 'entero'
+        elif isinstance(nodo, float):
+            return 'flotante'
+        elif isinstance(nodo, str):
+            if nodo in tabla_variables:
+                return tabla_variables[nodo].get('tipo_valor', 'desconocido')
+            return 'cadena'
+        elif isinstance(nodo, bool):
+            return 'booleano'
+        return 'desconocido'
+    
+    tipo = nodo[0]
+    
+    if tipo == 'literal':
+        valor = nodo[1]
+        if isinstance(valor, int):
+            return 'entero'
+        elif isinstance(valor, float):
+            return 'flotante'
+        elif isinstance(valor, str):
+            # Manejar strings con comillas
+            if valor.startswith('"') or valor.startswith("'"):
+                return 'cadena'
+            elif valor.startswith(':'):
+                return 'simbolo'
+            # Verificar si es un número como string
+            try:
+                int(valor)
+                return 'entero'
+            except ValueError:
+                try:
+                    float(valor)
+                    return 'flotante'
+                except ValueError:
+                    pass
+        elif valor in ['true', 'false']:
+            return 'booleano'
+        elif valor == 'nil':
+            return 'nil'
+            
+    elif tipo == 'arreglo':
+        # Determinar el tipo de los elementos
+        elementos = nodo[1]
+        if elementos:
+            primer_tipo = obtener_tipo_expresion(elementos[0], contexto)
+            return f'arreglo_{primer_tipo}'
+        return 'arreglo_vacio'
+        
+    elif tipo == 'llamada_metodo':
+        # Manejar métodos que retornan tipos específicos
+        if len(nodo) >= 3:
+            metodo = nodo[2]
+            if metodo in ['size', 'length', 'count']:
+                return 'entero'
+            elif metodo == 'to_s':
+                return 'cadena'
+            elif metodo == 'to_i':
+                return 'entero'
+            elif metodo == 'to_f':
+                return 'flotante'
+            elif metodo == 'to_a':
+                # Verificar el tipo del receptor
+                receptor = nodo[1]
+                if isinstance(receptor, str) and receptor in tabla_variables:
+                    tipo_receptor = tabla_variables[receptor].get('tipo_valor', '')
+                    if 'conjunto_' in tipo_receptor:
+                        return tipo_receptor.replace('conjunto_', 'arreglo_')
+                return 'arreglo'
+                
+    elif tipo == 'operacion_binaria':
+        _, op, izq, der = nodo
+        if op in ['+', '-', '*', '/', '%', '**']:
+            return 'numero'
+        elif op in ['==', '!=', '>', '<', '>=', '<=']:
+            return 'booleano'
+            
+    # Si es una variable, buscar su tipo
+    if isinstance(nodo, str) and nodo in tabla_variables:
+        return tabla_variables[nodo].get('tipo_valor', 'desconocido')
+        
+    return 'desconocido'
+
 #Aporte Paulette Maldonado
 def verificar_tipos_compatibles(valor1, valor2, operador, linea):
     if isinstance(valor1, str) and valor1 in tabla_variables:
@@ -953,7 +1058,6 @@ def generar_log_semantico(usuario_git):
     """Genera un archivo de log con errores semánticos."""
     if not errores_semanticos:
         print("No se encontraron errores semánticos.")
-        return
 
     os.makedirs(ruta_carpeta_logs, exist_ok=True)
     fecha_hora = datetime.datetime.now().strftime("%d%m%Y-%Hh%M")
@@ -969,34 +1073,380 @@ def generar_log_semantico(usuario_git):
 
     print(f"Log de errores semánticos generado: {ruta_archivo}")
 
-def realizar_analisis_semantico(nodo, contexto='global'):
-    """Realiza análisis semántico del AST."""
+
+def analizar_operacion_comparacion(expresion, num_linea, estado):
+    """Analiza una expresión con operadores de comparación."""
+    operadores = ['<', '>', '<=', '>=', '==', '!=']
+    
+    for op in operadores:
+        if op in expresion:
+            partes = expresion.split(op, 1)
+            if len(partes) == 2:
+                op1 = partes[0].strip()
+                op2 = partes[1].strip()
+                
+                tipo1 = detectar_tipo_operando(op1, estado)
+                tipo2 = detectar_tipo_operando(op2, estado)
+                
+                # Los operadores de comparación numérica requieren números
+                if op in ['<', '>', '<=', '>=']:
+                    if tipo1 not in ['numero', 'entero', 'flotante'] or tipo2 not in ['numero', 'entero', 'flotante']:
+                        # Mapear tipos para el mensaje
+                        tipo1_msg = 'String' if tipo1 == 'cadena' else 'Integer' if tipo1 in ['numero', 'entero'] else tipo1
+                        tipo2_msg = 'String' if tipo2 == 'cadena' else 'Integer' if tipo2 in ['numero', 'entero'] else tipo2
+                        error = f"Error semántico (línea {num_linea}): Operador '{op}' requiere números (tipos: {tipo1_msg}, {tipo2_msg})."
+                        errores_semanticos.append(error)
+                break
+
+
+def realizar_analisis_semantico_linea_por_linea(codigo):
+    """Análisis semántico básico línea por línea cuando hay errores sintácticos."""
+    lineas = codigo.split('\n')
+    
+    # Variables para rastrear contexto
+    estado = {
+        'en_funcion': False,
+        'en_bucle': False,
+        'variables_locales': {},
+        'tipo_iterador': None,
+        'nombre_iterador': None
+    }
+    
+    for num_linea, linea in enumerate(lineas, 1):
+        linea_limpia = linea.strip()
+        
+        # Detectar inicio de función
+        if linea_limpia.startswith('def '):
+            estado['en_funcion'] = True
+            estado['variables_locales'].clear()
+            estado['tipo_iterador'] = None
+            estado['nombre_iterador'] = None
+            
+        # Detectar fin de función
+        elif linea_limpia == 'end':
+            if estado['en_funcion']:
+                estado['en_funcion'] = False
+            elif estado['en_bucle']:
+                estado['en_bucle'] = False
+                
+        # Detectar bucle while
+        elif linea_limpia.startswith('while '):
+            estado['en_bucle'] = True
+            # Analizar la condición
+            condicion = linea_limpia[6:].strip()
+            analizar_operacion_comparacion(condicion, num_linea, estado)
+            
+        # Detectar bucle for
+        elif linea_limpia.startswith('for '):
+            estado['en_bucle'] = True
+            partes = linea_limpia.split()
+            if 'in' in partes:
+                idx_in = partes.index('in')
+                if idx_in > 1:
+                    iterador = partes[1]
+                    estado['nombre_iterador'] = iterador
+                    if idx_in + 1 < len(partes):
+                        arreglo = partes[idx_in + 1]
+                        if arreglo in tabla_variables:
+                            tipo_arreglo = tabla_variables[arreglo].get('tipo_valor', '')
+                            if 'cadena' in tipo_arreglo:
+                                estado['tipo_iterador'] = 'cadena'
+                                estado['variables_locales'][iterador] = 'cadena'
+                            elif 'entero' in tipo_arreglo or 'numero' in tipo_arreglo:
+                                estado['tipo_iterador'] = 'entero'
+                                estado['variables_locales'][iterador] = 'entero'
+                                
+        # Analizar asignaciones y operaciones
+        elif '=' in linea_limpia and not linea_limpia.startswith('return'):
+            # Verificar si es una operación de asignación compuesta
+            if '+=' in linea_limpia:
+                partes = linea_limpia.split('+=', 1)
+                if len(partes) == 2:
+                    var = partes[0].strip()
+                    expr = partes[1].strip()
+                    
+                    # Verificar tipo de variable
+                    tipo_var = detectar_tipo_operando(var, estado)
+                    tipo_expr = detectar_tipo_operando(expr, estado)
+                    
+                    if tipo_var not in ['numero', 'entero', 'flotante']:
+                        tipo_var_msg = 'String' if tipo_var == 'cadena' else 'Integer' if tipo_var in ['numero', 'entero'] else tipo_var
+                        tipo_expr_msg = 'String' if tipo_expr == 'cadena' else 'Integer' if tipo_expr in ['numero', 'entero'] else tipo_expr
+                        error = f"Error semántico (línea {num_linea}): Operador '+=' requiere números (tipos: {tipo_var_msg}, {tipo_expr_msg})."
+                        errores_semanticos.append(error)
+            else:
+                partes = linea_limpia.split('=', 1)
+                if len(partes) == 2:
+                    var = partes[0].strip()
+                    expr = partes[1].strip()
+                    
+                    # Detectar operaciones con +
+                    if '+' in expr and not '+=' in expr:
+                        analizar_operacion_suma(expr, num_linea, estado)
+                    
+                    # Detectar comparaciones
+                    for op in ['<', '>', '<=', '>=']:
+                        if op in expr:
+                            analizar_operacion_comparacion(expr, num_linea, estado)
+                            break
+                                
+                    # Actualizar tipo de variable
+                    tipo_expr = detectar_tipo_operando(expr, estado)
+                    if tipo_expr != 'desconocido':
+                        estado['variables_locales'][var] = tipo_expr
+                    
+        # Detectar return con concatenación
+        elif linea_limpia.startswith('return'):
+            expr = linea_limpia[6:].strip()
+            if '+' in expr:
+                analizar_operacion_suma(expr, num_linea, estado)
+
+
+def analizar_operacion_suma(expresion, num_linea, estado):
+    """Analiza una expresión con operador + para detectar incompatibilidades de tipo."""
+    # Dividir por + pero respetar strings con comillas
+    operandos = []
+    operando_actual = ""
+    en_string = False
+    comilla_tipo = None
+    
+    for char in expresion:
+        if char in ['"', "'"] and not en_string:
+            en_string = True
+            comilla_tipo = char
+            operando_actual += char
+        elif char == comilla_tipo and en_string:
+            en_string = False
+            operando_actual += char
+        elif char == '+' and not en_string:
+            if operando_actual.strip():
+                operandos.append(operando_actual.strip())
+            operando_actual = ""
+        else:
+            operando_actual += char
+    
+    if operando_actual.strip():
+        operandos.append(operando_actual.strip())
+    
+    # Analizar cada par de operandos adyacentes
+    for i in range(len(operandos) - 1):
+        op1 = operandos[i]
+        op2 = operandos[i + 1]
+        
+        tipo1 = detectar_tipo_operando(op1, estado)
+        tipo2 = detectar_tipo_operando(op2, estado)
+        
+        # Verificar compatibilidad
+        if tipo1 == 'numero' and tipo2 == 'cadena':
+            error = f"Error semántico (línea {num_linea}): Operador '+' requiere números (tipos: Integer, String)."
+            errores_semanticos.append(error)
+        elif tipo1 == 'cadena' and tipo2 == 'numero':
+            error = f"Error semántico (línea {num_linea}): Operador '+' requiere cadenas (tipos: String, Integer)."
+            errores_semanticos.append(error)
+
+
+def detectar_tipo_operando(operando, estado):
+    """Detecta el tipo de un operando con acceso al estado del análisis."""
+    operando = operando.strip()
+    
+    # Literal numérico
+    if operando.isdigit() or (operando.startswith('-') and operando[1:].isdigit()):
+        return 'entero'
+    
+    # Literal flotante
+    try:
+        float(operando)
+        return 'numero'
+    except ValueError:
+        pass
+    
+    # Literal de cadena
+    if (operando.startswith('"') and operando.endswith('"')) or \
+       (operando.startswith("'") and operando.endswith("'")):
+        return 'cadena'
+    
+    # Propiedades de objetos
+    if '.size' in operando:
+        return 'entero'
+    if '.length' in operando:
+        return 'entero'
+    
+    # Variable iteradora
+    if operando == estado.get('nombre_iterador'):
+        return estado.get('tipo_iterador', 'desconocido')
+    
+    # Variable en el contexto local
+    if operando in estado['variables_locales']:
+        return estado['variables_locales'][operando]
+    
+    # Variable global
+    if operando in tabla_variables:
+        tipo = tabla_variables[operando].get('tipo_valor', 'desconocido')
+        # Simplificar tipo de arreglo a tipo de elemento
+        if tipo.startswith('arreglo_'):
+            return tipo[8:]
+        return tipo
+    
+    # Casos especiales conocidos
+    if operando == 'suma':
+        return 'numero'
+    
+    return 'desconocido'
+
+def analizar_asignaciones_globales(codigo):
+    """Pre-analiza las asignaciones globales para detectar tipos."""
+    lineas = codigo.split('\n')
+    
+    for num_linea, linea in enumerate(lineas, 1):
+        linea = linea.strip()
+        
+        # Buscar asignaciones
+        if '=' in linea and not linea.startswith('if') and not linea.startswith('while'):
+            partes = linea.split('=', 1)
+            if len(partes) == 2:
+                var = partes[0].strip()
+                valor = partes[1].strip()
+                
+                # Detectar arreglo de strings
+                if valor.startswith('[') and valor.endswith(']'):
+                    # Verificar si contiene strings
+                    if '"' in valor or "'" in valor:
+                        tabla_variables[var] = {
+                            'tipo': 'variable',
+                            'tipo_valor': 'arreglo_cadena',
+                            'contexto': 'global',
+                            'linea': num_linea
+                        }
+                    # Verificar si contiene números
+                    elif any(char.isdigit() for char in valor):
+                        tabla_variables[var] = {
+                            'tipo': 'variable',
+                            'tipo_valor': 'arreglo_numero',
+                            'contexto': 'global',
+                            'linea': num_linea
+                        }
+                
+                # Detectar Set.new
+                elif 'Set.new' in valor:
+                    if '"' in valor or "'" in valor:
+                        tabla_variables[var] = {
+                            'tipo': 'variable',
+                            'tipo_valor': 'conjunto_cadena',
+                            'contexto': 'global',
+                            'linea': num_linea
+                        }
+                    elif any(char.isdigit() for char in valor):
+                        tabla_variables[var] = {
+                            'tipo': 'variable',
+                            'tipo_valor': 'conjunto_numero',
+                            'contexto': 'global',
+                            'linea': num_linea
+                        }
+                
+                # Detectar asignación de string literal
+                elif (valor.startswith('"') and valor.endswith('"')) or \
+                     (valor.startswith("'") and valor.endswith("'")):
+                    tabla_variables[var] = {
+                        'tipo': 'variable',
+                        'tipo_valor': 'cadena',
+                        'contexto': 'global',
+                        'linea': num_linea
+                    }
+                
+                # Detectar asignación de número
+                elif valor.isdigit() or (valor.startswith('-') and valor[1:].isdigit()):
+                    tabla_variables[var] = {
+                        'tipo': 'variable',
+                        'tipo_valor': 'entero',
+                        'contexto': 'global',
+                        'linea': num_linea
+                    }
+                
+                # Detectar .to_a (conversión a arreglo)
+                elif '.to_a' in valor:
+                    origen = valor.split('.to_a')[0].strip()
+                    if origen in tabla_variables:
+                        tipo_origen = tabla_variables[origen].get('tipo_valor', '')
+                        if 'conjunto_' in tipo_origen:
+                            tipo_elemento = tipo_origen.replace('conjunto_', 'arreglo_')
+                            tabla_variables[var] = {
+                                'tipo': 'variable',
+                                'tipo_valor': tipo_elemento,
+                                'contexto': 'global',
+                                'linea': num_linea
+                            }
+
+
+def realizar_analisis_semantico(nodo, contexto='global', linea_actual=1):
+    """Realiza análisis semántico del AST con seguimiento de líneas."""
     if nodo is None:
-        return
+        return linea_actual
         
     if isinstance(nodo, list):
         for item in nodo:
-            realizar_analisis_semantico(item, contexto)
-        return
+            linea_actual = realizar_analisis_semantico(item, contexto, linea_actual)
+        return linea_actual
         
     if not isinstance(nodo, tuple):
-        return
+        return linea_actual
         
     tipo_nodo = nodo[0]
     
     if tipo_nodo == 'asignacion':
         _, operador, var, valor = nodo
-        tabla_variables[var] = {'tipo': 'variable', 'valor': valor, 'contexto': contexto}
-        realizar_analisis_semantico(valor, contexto)
+        tipo_valor = obtener_tipo_expresion(valor, contexto)
+        
+        # Caso especial para arreglos con strings literales
+        if isinstance(valor, tuple) and valor[0] == 'arreglo':
+            elementos = valor[1]
+            if elementos and all(isinstance(e, tuple) and e[0] == 'literal' and 
+                               isinstance(e[1], str) and (e[1].startswith('"') or e[1].startswith("'")) 
+                               for e in elementos):
+                tipo_valor = 'arreglo_cadena'
+        
+        # Caso especial para strings literales
+        if isinstance(valor, tuple) and valor[0] == 'literal':
+            val = valor[1]
+            if isinstance(val, str) and (val.startswith('"') or val.startswith("'")):
+                tipo_valor = 'cadena'
+        
+        if operador == '=':
+            tabla_variables[var] = {
+                'tipo': 'variable', 
+                'valor': valor, 
+                'tipo_valor': tipo_valor,
+                'contexto': contexto,
+                'linea': linea_actual
+            }
+        elif operador in ['+=', '-=', '*=', '/=', '%=']:
+            # Verificar que la variable existe y es numérica
+            if var in tabla_variables:
+                tipo_var = tabla_variables[var].get('tipo_valor', 'desconocido')
+                tipo_expr = obtener_tipo_expresion(valor, contexto)
+                
+                if tipo_var not in ['entero', 'flotante', 'numero'] or tipo_expr not in ['entero', 'flotante', 'numero']:
+                    # Mapear tipos para el mensaje
+                    tipo_var_msg = 'String' if tipo_var == 'cadena' else 'Integer' if tipo_var in ['numero', 'entero'] else tipo_var
+                    tipo_expr_msg = 'String' if tipo_expr == 'cadena' else 'Integer' if tipo_expr in ['numero', 'entero'] else tipo_expr
+                    error = f"Error semántico (línea {linea_actual}): Operador '{operador}' requiere números (tipos: {tipo_var_msg}, {tipo_expr_msg})."
+                    errores_semanticos.append(error)
+        
+        linea_actual = realizar_analisis_semantico(valor, contexto, linea_actual)
+        return linea_actual + 1
         
     elif tipo_nodo == 'def':
         _, nombre, params, cuerpo = nodo
         metodos_definidos[nombre] = {'params': params, 'cuerpo': cuerpo}
-        realizar_analisis_semantico(cuerpo, f'metodo_{nombre}')
+        # Contar líneas del def
+        linea_actual += 1
+        linea_actual = realizar_analisis_semantico(cuerpo, f'metodo_{nombre}', linea_actual)
+        return linea_actual + 1  # Para el END
         
     elif tipo_nodo == 'clase':
         _, nombre, padre, cuerpo = nodo
-        realizar_analisis_semantico(cuerpo, f'clase_{nombre}')
+        linea_actual += 1
+        linea_actual = realizar_analisis_semantico(cuerpo, f'clase_{nombre}', linea_actual)
+        return linea_actual + 1
         
     elif tipo_nodo == 'llamada_metodo':
         # Puede tener 4 o 5 elementos (con bloque opcional)
@@ -1008,67 +1458,151 @@ def realizar_analisis_semantico(nodo, contexto='global'):
             
         # Solo verificar si el método es local (no tiene receptor)
         if receptor is None and metodo not in ['puts', 'print', 'printf', 'gets', 'require', 'split', 'each', 'new']:
-            verificar_metodo_definido(metodo, 0)
+            verificar_metodo_definido(metodo, linea_actual)
             
-        realizar_analisis_semantico(receptor, contexto)
+        if receptor:
+            linea_actual = realizar_analisis_semantico(receptor, contexto, linea_actual)
         for arg in args:
-            realizar_analisis_semantico(arg, contexto)
+            linea_actual = realizar_analisis_semantico(arg, contexto, linea_actual)
         if bloque:
-            realizar_analisis_semantico(bloque, contexto)
-            
+            linea_actual = realizar_analisis_semantico(bloque, contexto, linea_actual)
+        
+        # Las llamadas a métodos normalmente están en una línea
+        return linea_actual
+        
     elif tipo_nodo == 'operacion_binaria':
         _, op, izq, der = nodo
-        realizar_analisis_semantico(izq, contexto)
-        realizar_analisis_semantico(der, contexto)
+        tipo_izq = obtener_tipo_expresion(izq, contexto)
+        tipo_der = obtener_tipo_expresion(der, contexto)
         
-    elif tipo_nodo in ['bucle_mientras', 'bucle_hasta', 'bucle_for', 'bucle_infinito']:
-        for parte in nodo[1:]:
-            realizar_analisis_semantico(parte, 'bucle')
+        # Para operadores de comparación numérica
+        if op in ['<', '>', '<=', '>=']:
+            # Verificar si estamos accediendo a una propiedad .size
+            if isinstance(der, tuple) and der[0] == 'llamada_metodo' and der[2] == 'size':
+                tipo_der = 'entero'
             
+            if tipo_izq not in ['entero', 'flotante', 'numero'] or tipo_der not in ['entero', 'flotante', 'numero']:
+                # Mapear tipos para el mensaje
+                tipo_izq_msg = 'String' if tipo_izq == 'cadena' else 'Integer' if tipo_izq in ['numero', 'entero'] else tipo_izq
+                tipo_der_msg = 'String' if tipo_der == 'cadena' else 'Integer' if tipo_der in ['numero', 'entero'] else tipo_der
+                error = f"Error semántico (línea {linea_actual}): Operador '{op}' requiere números (tipos: {tipo_izq_msg}, {tipo_der_msg})."
+                errores_semanticos.append(error)
+        
+        # Para operadores aritméticos
+        elif op in ['+', '-', '*', '/', '%', '**']:
+            # Caso especial: + puede ser concatenación de strings
+            if op == '+':
+                if tipo_izq == 'cadena' and tipo_der != 'cadena':
+                    error = f"Error semántico (línea {linea_actual}): Operador '+' requiere cadenas (tipos: {tipo_izq}, {tipo_der})."
+                    errores_semanticos.append(error)
+                elif tipo_izq in ['entero', 'flotante', 'numero'] and tipo_der not in ['entero', 'flotante', 'numero']:
+                    error = f"Error semántico (línea {linea_actual}): Operador '+' requiere números (tipos: {tipo_izq}, {tipo_der})."
+                    errores_semanticos.append(error)
+            else:
+                # Otros operadores aritméticos solo funcionan con números
+                if tipo_izq not in ['entero', 'flotante', 'numero'] or tipo_der not in ['entero', 'flotante', 'numero']:
+                    error = f"Error semántico (línea {linea_actual}): Operador '{op}' requiere números (tipos: {tipo_izq}, {tipo_der})."
+                    errores_semanticos.append(error)
+                    
+        linea_actual = realizar_analisis_semantico(izq, contexto, linea_actual)
+        linea_actual = realizar_analisis_semantico(der, contexto, linea_actual)
+        return linea_actual
+        
+    elif tipo_nodo in ['bucle_mientras', 'bucle_hasta']:
+        _, condicion, cuerpo = nodo
+        # La línea del while
+        linea_actual = realizar_analisis_semantico(condicion, contexto, linea_actual)
+        linea_actual += 1  # Pasar a la siguiente línea después del while
+        linea_actual = realizar_analisis_semantico(cuerpo, 'bucle', linea_actual)
+        return linea_actual + 1  # Para el END
+        
+    elif tipo_nodo == 'bucle_for':
+        _, iterador, expresion, cuerpo = nodo
+        # El iterador toma el tipo de los elementos del arreglo
+        tipo_expr = obtener_tipo_expresion(expresion, contexto)
+        if tipo_expr.startswith('arreglo_'):
+            tipo_elemento = tipo_expr[8:]  # Quitar 'arreglo_'
+            tabla_variables[iterador] = {
+                'tipo': 'variable',
+                'tipo_valor': tipo_elemento,
+                'contexto': 'bucle',
+                'linea': linea_actual
+            }
+        linea_actual = realizar_analisis_semantico(expresion, contexto, linea_actual)
+        linea_actual += 1
+        linea_actual = realizar_analisis_semantico(cuerpo, 'bucle', linea_actual)
+        return linea_actual + 1
+        
     elif tipo_nodo == 'condicional':
-        for parte in nodo[1:]:
-            realizar_analisis_semantico(parte, contexto)
+        # if/unless condition then body [elsif...] [else...] end
+        if len(nodo) >= 5:
+            _, tipo_if, condicion, cuerpo_then, resto = nodo[:5]
+            linea_actual = realizar_analisis_semantico(condicion, contexto, linea_actual)
+            linea_actual += 1
+            linea_actual = realizar_analisis_semantico(cuerpo_then, contexto, linea_actual)
+            if resto:
+                linea_actual = realizar_analisis_semantico(resto, contexto, linea_actual)
+            return linea_actual + 1
+        else:
+            return linea_actual + 1
             
     elif tipo_nodo == 'bloque':
         _, params, cuerpo = nodo
         # Los parámetros del bloque se agregan al contexto local
         for param in params:
             tabla_variables[param] = {'tipo': 'parametro_bloque', 'contexto': contexto}
-        realizar_analisis_semantico(cuerpo, contexto)
+        linea_actual = realizar_analisis_semantico(cuerpo, contexto, linea_actual)
+        return linea_actual
         
     elif tipo_nodo == 'modificador_if' or tipo_nodo == 'modificador_unless':
         _, sentencia, condicion = nodo
-        realizar_analisis_semantico(sentencia, contexto)
-        realizar_analisis_semantico(condicion, contexto)
+        linea_actual = realizar_analisis_semantico(sentencia, contexto, linea_actual)
+        linea_actual = realizar_analisis_semantico(condicion, contexto, linea_actual)
+        return linea_actual
         
     elif tipo_nodo == 'ternario':
         _, condicion, si_verdadero, si_falso = nodo
-        realizar_analisis_semantico(condicion, contexto)
-        realizar_analisis_semantico(si_verdadero, contexto)
-        realizar_analisis_semantico(si_falso, contexto)
+        linea_actual = realizar_analisis_semantico(condicion, contexto, linea_actual)
+        linea_actual = realizar_analisis_semantico(si_verdadero, contexto, linea_actual)
+        linea_actual = realizar_analisis_semantico(si_falso, contexto, linea_actual)
+        return linea_actual
         
     elif tipo_nodo == 'imprimir':
         _, metodo, expresion = nodo
-        realizar_analisis_semantico(expresion, contexto)
+        linea_actual = realizar_analisis_semantico(expresion, contexto, linea_actual)
+        return linea_actual + 1
         
     elif tipo_nodo in ['romper', 'siguiente']:
-        verificar_estructuras_control(tipo_nodo.replace('romper', 'break').replace('siguiente', 'next'), contexto, 0)
+        verificar_estructuras_control(tipo_nodo.replace('romper', 'break').replace('siguiente', 'next'), contexto, linea_actual)
         if len(nodo) > 1 and nodo[1]:
-            realizar_analisis_semantico(nodo[1], contexto)
-            
+            linea_actual = realizar_analisis_semantico(nodo[1], contexto, linea_actual)
+        return linea_actual + 1
+        
     elif tipo_nodo == 'require':
-        pass  # No necesita análisis semántico adicional
+        return linea_actual + 1
         
     elif tipo_nodo == 'expresion_con_bloque':
         _, expresion, bloque = nodo
-        realizar_analisis_semantico(expresion, contexto)
-        realizar_analisis_semantico(bloque, contexto)
+        linea_actual = realizar_analisis_semantico(expresion, contexto, linea_actual)
+        linea_actual = realizar_analisis_semantico(bloque, contexto, linea_actual)
+        return linea_actual
+        
+    elif tipo_nodo == 'acceso_elemento':
+        _, arreglo, indice = nodo
+        linea_actual = realizar_analisis_semantico(arreglo, contexto, linea_actual)
+        linea_actual = realizar_analisis_semantico(indice, contexto, linea_actual)
+        return linea_actual
+        
+    elif tipo_nodo in ['literal', 'arreglo', 'hash']:
+        # Estos no agregan líneas por sí mismos
+        return linea_actual
         
     else:
         # Para otros tipos de nodos, analizar recursivamente sus hijos
         for hijo in nodo[1:]:
             if isinstance(hijo, (list, tuple)):
-                realizar_analisis_semantico(hijo, contexto)
+                linea_actual = realizar_analisis_semantico(hijo, contexto, linea_actual)
+        return linea_actual
 
 # --- Construcción del Parser ---
 
@@ -1092,13 +1626,15 @@ def analizar_archivo_ruby(nombre_archivo, usuario_git):
         print(f"\n--- Analizando: {nombre_archivo} (Usuario: {usuario_git}) ---")
         
         # Reiniciar lexer
+        analizar_asignaciones_globales(codigo)
+        lineas = codigo.split('\n')
         lexer.lineno = 1
         
         # Análisis sintáctico
         arbol_sintactico = parser.parse(codigo, lexer=lexer)
 
         # Generar log sintáctico
-        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
         nombre_archivo_log_sintactico = f"sintactico-{usuario_git}-{timestamp}.txt"
         ruta_archivo_log_sintactico = os.path.join(ruta_carpeta_logs, nombre_archivo_log_sintactico)
 
@@ -1133,8 +1669,14 @@ def analizar_archivo_ruby(nombre_archivo, usuario_git):
                 archivo_log.write(json.dumps(ast_serializable, indent=2, ensure_ascii=False))
                 print(f"Análisis sintáctico exitoso. Log en: {ruta_archivo_log_sintactico}")
 
+        if errores_sintacticos:
+            print("Realizando análisis semántico línea por línea debido a errores sintácticos...")
+            realizar_analisis_semantico_linea_por_linea(codigo)
+        elif arbol_sintactico:
             realizar_analisis_semantico(arbol_sintactico)
-            generar_log_semantico(usuario_git)
+            
+        generar_log_semantico(usuario_git)    
+        
 
     except FileNotFoundError:
         print(f"Error: El archivo {ruta_completa_archivo} no fue encontrado.")
@@ -1147,6 +1689,14 @@ def analizar_archivo_ruby(nombre_archivo, usuario_git):
 
 if __name__ == '__main__':
     # Pruebas
-    analizar_archivo_ruby("algoritmo1_Paulette_Maldonado.rb", "Pauyamal")
-    analizar_archivo_ruby("algoritmo2_Isaac_Criollo.rb", "Izaako04")
-    analizar_archivo_ruby("algoritmo3_Joel_Guamani.rb", "isaiasgh")
+    analizar_archivo_ruby("alg1_Paulette_Maldonado.rb", "Pauyamal")
+    # analizar_archivo_ruby("alg2_Paulette_Maldonado.rb", "Pauyamal")
+    # analizar_archivo_ruby("alg3_Paulette_Maldonado.rb", "Pauyamal")
+
+    analizar_archivo_ruby("alg1_Isaac_Criollo.rb", "Izaako04")
+    # analizar_archivo_ruby("alg2_Isaac_Criollo.rb", "Izaako04")
+    # analizar_archivo_ruby("alg3_Isaac_Criollo.rb", "Izaako04")
+
+    analizar_archivo_ruby("alg1_Joel_Guamani.rb", "isaiasgh")
+    # analizar_archivo_ruby("alg2_Joel_Guamani.rb", "isaiasgh")
+    # analizar_archivo_ruby("alg3_Joel_Guamani.rb", "isaiasgh")

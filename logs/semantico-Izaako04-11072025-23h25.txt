@@ -1,0 +1,7 @@
+Errores semánticos - Usuario: Izaako04
+Fecha: 2025-07-11 23:25:36
+==================================================
+Error semántico (línea 4): Método 'conjunto_numeros' no definido.
+Error semántico (línea 5): Operador '<' requiere números (tipos: desconocido, Integer).
+Error semántico (línea 5): Método 'indice' no definido.
+Error semántico (línea 5): Método 'arreglo_numeros' no definido.

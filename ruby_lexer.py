@@ -195,6 +195,7 @@ t_OPERADOR_ASIGNACION = r'='
 # Aporte Comun
 t_ignore = ' \t'
 t_APPEND = r'<<'
+
 def t_nuevalinea(t):
     r'\n+'
     t.lexer.lineno += len(t.value)

@@ -34,19 +34,6 @@ class RubyAnalyzerGUI:
         style = ttk.Style()
         style.theme_use('clam')
         
-        # Estilo para el Notebook
-        style.configure('Pastel.TNotebook', 
-                       background=self.colors['bg_main'],
-                       borderwidth=0)
-        style.configure('Pastel.TNotebook.Tab',
-                       background=self.colors['bg_secondary'],
-                       foreground=self.colors['text_primary'],
-                       padding=[20, 10],
-                       borderwidth=0)
-        style.map('Pastel.TNotebook.Tab',
-                 background=[('selected', self.colors['accent'])],
-                 foreground=[('selected', 'white')])
-        
         # Estilo para los botones
         style.configure('Accent.TButton',
                        background=self.colors['accent'],
@@ -61,24 +48,28 @@ class RubyAnalyzerGUI:
         # Header con gradiente simulado
         self.create_header()
         
-        # Contenedor principal
+        # Contenedor principal con peso igual para ambos lados
         main_container = tk.Frame(self.root, bg=self.colors['bg_main'])
         main_container.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
         
-        # Panel izquierdo - Editor
-        left_panel = tk.Frame(main_container, bg=self.colors['bg_main'])
-        left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
-        
-        self.create_editor_panel(left_panel)
-        
-        # Panel derecho - Resultados
+        # Panel derecho - Editor (antes izquierdo)
         right_panel = tk.Frame(main_container, bg=self.colors['bg_main'])
         right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
         
-        self.create_results_panel(right_panel)
+        self.create_editor_panel(right_panel)
+        
+        # Panel izquierdo - Resultados (antes derecho)
+        left_panel = tk.Frame(main_container, bg=self.colors['bg_main'])
+        left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+        
+        self.create_results_panel(left_panel)
         
         # Status bar
         self.create_status_bar()
+        
+        # Configurar pesos para que ocupen exactamente la mitad
+        main_container.grid_columnconfigure(0, weight=1, uniform="half")
+        main_container.grid_columnconfigure(1, weight=1, uniform="half")
         
     def create_header(self):
         """Crear header con diseño moderno"""
@@ -167,7 +158,7 @@ end
 saludar("Mundo")""")
         
     def create_results_panel(self, parent):
-        """Crear panel de resultados con pestañas"""
+        """Crear panel de resultados con los tres analizadores uno debajo del otro"""
         results_frame = tk.Frame(parent, bg=self.colors['bg_secondary'], relief=tk.FLAT, bd=1)
         results_frame.pack(fill=tk.BOTH, expand=True)
         
@@ -181,28 +172,77 @@ saludar("Mundo")""")
                 bg=self.colors['bg_secondary'],
                 fg=self.colors['text_primary']).pack(side=tk.LEFT)
         
-        # Notebook con pestañas
-        notebook = ttk.Notebook(results_frame, style='Pastel.TNotebook')
-        notebook.pack(fill=tk.BOTH, expand=True, padx=15, pady=(0, 15))
+        # Contenedor para los tres analizadores con scrollbar
+        container = tk.Frame(results_frame, bg=self.colors['bg_main'])
+        container.pack(fill=tk.BOTH, expand=True, padx=15, pady=(0, 15))
         
-        # Pestaña de análisis léxico
-        self.lexical_frame = self.create_analysis_tab(notebook, "🔤 Lexical Analysis")
-        notebook.add(self.lexical_frame, text="🔤 Lexical")
+        # Canvas y scrollbar
+        canvas = tk.Canvas(container, bg=self.colors['bg_main'], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg=self.colors['bg_main'])
         
-        # Pestaña de análisis sintáctico
-        self.syntactic_frame = self.create_analysis_tab(notebook, "🌳 Syntactic Analysis")
-        notebook.add(self.syntactic_frame, text="🌳 Syntactic")
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(
+                scrollregion=canvas.bbox("all")
+            )
+        )
         
-        # Pestaña de análisis semántico
-        self.semantic_frame = self.create_analysis_tab(notebook, "🧠 Semantic Analysis")
-        notebook.add(self.semantic_frame, text="🧠 Semantic")
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
         
-        # Pestaña de reporte
-        self.report_frame = self.create_analysis_tab(notebook, "📊 Complete Report")
-        notebook.add(self.report_frame, text="📊 Report")
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Crear los tres analizadores uno debajo del otro
+        self.lexical_frame = self.create_analysis_section(scrollable_frame, "🔤 Lexical Analysis")
+        self.syntactic_frame = self.create_analysis_section(scrollable_frame, "🌳 Syntactic Analysis")
+        self.semantic_frame = self.create_analysis_section(scrollable_frame, "🧠 Semantic Analysis")
+        
+        # Separadores entre secciones
+        for frame in [self.lexical_frame, self.syntactic_frame]:
+            separator = tk.Frame(scrollable_frame, height=2, bg=self.colors['border'])
+            separator.pack(fill=tk.X, pady=10)
+        
+        # Pestaña de reporte (la mantenemos aparte)
+        self.report_frame = self.create_analysis_tab(None, "📊 Complete Report")
+        
+    def create_analysis_section(self, parent, title):
+        """Crear una sección de análisis con título y área de texto"""
+        frame = tk.Frame(parent, bg=self.colors['bg_main'])
+        
+        # Título de la sección
+        title_label = tk.Label(frame,
+                              text=title,
+                              font=("Segoe UI", 12, "bold"),
+                              bg=self.colors['bg_main'],
+                              fg=self.colors['text_primary'])
+        title_label.pack(pady=(10, 5), anchor='w')
+        
+        # Área de texto
+        text_frame = tk.Frame(frame, bg=self.colors['border'])
+        text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        text_widget = scrolledtext.ScrolledText(text_frame,
+                                               font=("Consolas", 10),
+                                               bg="white",
+                                               fg=self.colors['text_primary'],
+                                               wrap=tk.WORD,
+                                               relief=tk.FLAT,
+                                               state=tk.DISABLED,
+                                               padx=10,
+                                               pady=10,
+                                               height=10)  # Altura fija para cada sección
+        text_widget.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
+        
+        # Guardar referencia al widget de texto
+        frame.text_widget = text_widget
+        
+        frame.pack(fill=tk.BOTH, expand=True)
+        return frame
         
     def create_analysis_tab(self, parent, title):
-        """Crear una pestaña de análisis"""
+        """Crear una pestaña de análisis (para el reporte)"""
         frame = tk.Frame(parent, bg=self.colors['bg_main'])
         
         # Título de la sección
@@ -546,9 +586,10 @@ saludar("Mundo")""")
     def clear_results(self):
         """Limpiar todos los resultados"""
         for frame in [self.lexical_frame, self.syntactic_frame, self.semantic_frame, self.report_frame]:
-            frame.text_widget.config(state=tk.NORMAL)
-            frame.text_widget.delete(1.0, tk.END)
-            frame.text_widget.config(state=tk.DISABLED)
+            if hasattr(frame, 'text_widget'):
+                frame.text_widget.config(state=tk.NORMAL)
+                frame.text_widget.delete(1.0, tk.END)
+                frame.text_widget.config(state=tk.DISABLED)
             
     def clear_all(self):
         """Limpiar todo"""
