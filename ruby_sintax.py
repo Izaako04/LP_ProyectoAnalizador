@@ -14,13 +14,13 @@ contexto_actual = []
 
 # --- Reglas de Precedencia y Asociatividad ---
 precedence = (
-    ('right', 'IF', 'UNLESS', 'RESCUE'),
     ('right', 'ASIGNACION', 'MAS_ASIGNACION', 'MENOS_ASIGNACION', 'MULT_ASIGNACION', 'DIV_ASIGNACION', 'MOD_ASIGNACION'),
     ('left', 'INTERROGACION', 'DOS_PUNTOS'),  # Operador ternario
     ('left', 'OR_LOGICO', 'O_SIGNO', 'OR'),
     ('left', 'AND_LOGICO', 'Y_SIGNO', 'AND'),
     ('nonassoc', 'IGUAL', 'DIFERENTE', 'MAYOR_IGUAL', 'MENOR_IGUAL', 'MAYOR_QUE', 'MENOR_QUE', 'NAVE_ESPACIAL', 'TRIPLE_IGUAL'),
     ('left', 'APPEND'),
+    ('left', 'RANGO_INCLUSIVO', 'RANGO_EXCLUSIVO'), 
     ('left', 'MAS', 'MENOS'),
     ('left', 'MULTIPLICACION', 'DIVISION', 'MODULO'),
     ('right', 'EXPONENCIACION'),
@@ -79,6 +79,7 @@ def p_sentencia(p):
               | SUPER argumentos_metodo
               | RAISE expresion
               | vacio
+              | sentencia_for
     '''
     if len(p) == 1:
         p[0] = None
@@ -557,25 +558,52 @@ def p_sentencia_bucle(p):
     '''
     sentencia_bucle : WHILE expresion optional_do sentencias END
                     | UNTIL expresion optional_do sentencias END
-                    | FOR ID IN expresion optional_do sentencias END
                     | LOOP bloque_o_do_end
                     | expresion_postfix PUNTO EACH bloque_o_do_end
+                    | sentencia_for
     '''
     if p[1] == 'while':
         p[0] = ('bucle_mientras', p[2], p[4])
     elif p[1] == 'until':
         p[0] = ('bucle_hasta', p[2], p[4])
-    elif p[1] == 'for':
-        p[0] = ('bucle_for', p[2], p[4], p[6])
     elif p[1] == 'loop':
         p[0] = ('bucle_infinito', p[2])
     else:
-        # Para entrada.each
-        p[0] = ('llamada_metodo', p[1], 'each', [], p[4])
+        p[0] = p[1]
+
+def p_sentencia_for(p):
+    '''
+    sentencia_for : FOR ID IN iterable_basico optional_do sentencias END
+    '''
+    p[0] = ('bucle_for', p[2], p[4], p[6])
+
+def p_expresion_rango(p):
+    '''
+    expresion_rango : expresion_comparacion RANGO_INCLUSIVO expresion_comparacion
+                    | expresion_comparacion RANGO_EXCLUSIVO expresion_comparacion
+    '''
+    tipo_rango = 'inclusivo' if p[2] == '..' else 'exclusivo'
+    p[0] = ('rango', p[1], p[3], tipo_rango)
+
+def p_iterable_basico(p):
+    '''
+    iterable_basico : expresion_rango
+                    | creacion_array  
+                    | identificador_variable
+                    | expresion_postfix PUNTO metodo_id
+                    | llamada_metodo_sin_receptor
+                    | PARENTESIS_IZQ expresion_rango PARENTESIS_DER PUNTO metodo_id
+    '''
+    if len(p) == 2:
+        p[0] = p[1]
+    elif len(p) == 4:
+        p[0] = ('llamada_metodo', p[1], p[3], [])
+    else:
+        p[0] = ('llamada_metodo', p[2], p[5], [])
 
 def p_optional_do(p):
     '''optional_do : DO
-                   | vacio'''
+                    | vacio'''
     pass
 
 def p_bloque_o_do_end(p):

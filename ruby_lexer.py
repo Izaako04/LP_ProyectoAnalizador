@@ -97,7 +97,7 @@ def t_CADENA_SIMPLE(t): # Esta se mantiene igual.
     return t
 
 def t_REGEX(t):
-    r'/[^/]+/[a-z]*'
+    r'/(?:[a-zA-Z0-9_\[\]{}()\.\*\+\?\|\^\$\\-]|\\[^/])+/[gimxo]*'
     t.value = t.value[1:-1] 
     return t
 
@@ -261,7 +261,7 @@ def pruebas_Joel():
 def pruebas_Paulette():
     lexer = lex.lex()
     analizar_y_loguear(lexer, "algoritmo1_Paulette_Maldonado.rb", "lexico-PauletteMaldonado")
-
+    analizar_y_loguear(lexer, "algPrueba.rb", "lexico-PM")
 
 if __name__ == "__main__":
     pruebas_Isaac()
