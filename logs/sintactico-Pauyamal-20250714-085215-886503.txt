@@ -1,0 +1,71 @@
+Análisis sintáctico de: alg1_Paulette_Maldonado.rb
+Usuario: Pauyamal
+Fecha y Hora: 2025-07-14 08:52:15
+==================================================
+No se encontraron errores sintácticos.
+
+--- Árbol de Sintaxis Abstracta (AST) ---
+[
+  [
+    "imprimir",
+    "puts",
+    [
+      "literal",
+      "\\n[1] Ejemplo Correcto:"
+    ]
+  ],
+  [
+    "imprimir",
+    "puts",
+    [
+      "literal",
+      "\\nIteración con FOR:"
+    ]
+  ],
+  [
+    "asignacion",
+    "=",
+    "palabras",
+    [
+      "arreglo",
+      [
+        [
+          "literal",
+          "Ruby"
+        ],
+        [
+          "literal",
+          "Parser"
+        ],
+        [
+          "literal",
+          "PLY"
+        ],
+        [
+          "literal",
+          "Analizador"
+        ]
+      ]
+    ]
+  ],
+  [
+    "bucle_for",
+    "palabra",
+    [
+      "llamada_metodo",
+      null,
+      "palabras",
+      [
+        [
+          "imprimir",
+          "puts",
+          [
+            "literal",
+            "Palabra: #{palabra} (Longitud: #{palabra.length})"
+          ]
+        ]
+      ]
+    ],
+    []
+  ]
+]

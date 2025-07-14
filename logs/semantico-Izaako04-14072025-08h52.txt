@@ -1,0 +1,4 @@
+Errores semánticos - Usuario: Izaako04
+Fecha: 2025-07-14 08:52:15
+==================================================
+Error semántico (línea 5): Operador '<' requiere números (tipos: desconocido, Integer).

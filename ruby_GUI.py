@@ -150,12 +150,7 @@ class RubyAnalyzerGUI:
         self.editor.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
         
         # Agregar números de línea (simulado con texto)
-        self.editor.insert(1.0, """# Ejemplo de código Ruby
-def saludar(nombre)
-  puts "Hola, #{nombre}!"
-end
-
-saludar("Mundo")""")
+        self.editor.insert(1.0, """# CODIGO""")
         
     def create_results_panel(self, parent):
         """Crear panel de resultados con los tres analizadores uno debajo del otro"""
@@ -325,18 +320,30 @@ saludar("Mundo")""")
             # Limpiar resultados anteriores
             self.clear_results()
             
-            # Reiniciar estado
+            # Reiniciar estado - IMPORTANTE: usar las variables globales importadas
             global errores_sintacticos, errores_semanticos, tabla_variables, metodos_definidos
-            errores_sintacticos = []
-            errores_semanticos = []
-            tabla_variables.clear()
-            metodos_definidos.clear()
+            
+            # Limpiar las listas globales
+            if 'errores_sintacticos' in globals():
+                errores_sintacticos.clear()
+            if 'errores_semanticos' in globals():
+                errores_semanticos.clear()
+            if 'tabla_variables' in globals():
+                tabla_variables.clear()
+            if 'metodos_definidos' in globals():
+                metodos_definidos.clear()
+            
+            print("Estado inicial limpiado")
+            print(f"Errores sintácticos: {len(errores_sintacticos)}")
+            print(f"Errores semánticos: {len(errores_semanticos)}")
             
             # Análisis léxico
             self.perform_lexical_analysis(code)
             
             # Análisis sintáctico
+            print("Iniciando análisis sintáctico...")
             ast = self.perform_syntactic_analysis(code)
+            print(f"Análisis sintáctico completado. Errores: {len(errores_sintacticos)}")
             
             # Análisis semántico
             self.perform_semantic_analysis(ast)
@@ -354,6 +361,8 @@ saludar("Mundo")""")
         except Exception as e:
             messagebox.showerror("Error", f"Analysis failed: {str(e)}")
             self.update_status("❌ Analysis failed", "error")
+            import traceback
+            traceback.print_exc()
             
     def perform_lexical_analysis(self, code):
         """Realizar análisis léxico"""
@@ -409,19 +418,33 @@ saludar("Mundo")""")
         
         text_widget.insert(tk.END, "=== SYNTACTIC ANALYSIS RESULTS ===\n\n")
         
+        # Limpiar errores sintácticos previos
+        global errores_sintacticos
+        errores_sintacticos.clear()
+        
         # Reiniciar lexer
         lexer.lineno = 1
         
         # Parsear
         ast = None
         try:
+            # Forzar la actualización de la GUI antes del parsing
+            self.root.update()
+            
+            # Hacer el parsing
             ast = parser.parse(code, lexer=lexer)
             
+            # Verificar si hay errores sintácticos después del parsing
             if errores_sintacticos:
                 text_widget.insert(tk.END, "❌ Syntax Errors Found:\n")
                 text_widget.insert(tk.END, "-" * 60 + "\n")
+                for i, error in enumerate(errores_sintacticos, 1):
+                    text_widget.insert(tk.END, f"{i}. {error}\n")
+                text_widget.insert(tk.END, "\n")
+                # También imprimir en consola para debug
+                print(f"Errores sintácticos encontrados: {len(errores_sintacticos)}")
                 for error in errores_sintacticos:
-                    text_widget.insert(tk.END, f"• {error}\n")
+                    print(f"  - {error}")
             else:
                 text_widget.insert(tk.END, "✅ Syntax Analysis: PASSED\n\n")
                 text_widget.insert(tk.END, "✓ No syntax errors found\n")
@@ -438,9 +461,24 @@ saludar("Mundo")""")
                         text_widget.insert(tk.END, "\n... (truncated)")
                         
         except Exception as e:
-            text_widget.insert(tk.END, f"❌ Parse Error: {str(e)}\n")
+            # Capturar errores de parsing que no fueron manejados por p_error
+            error_msg = f"Parse Error: {str(e)}"
+            text_widget.insert(tk.END, f"❌ {error_msg}\n")
+            errores_sintacticos.append(error_msg)
+            print(f"Excepción en parsing: {error_msg}")
+            
+        if errores_sintacticos and "❌ Syntax Errors Found:" not in text_widget.get(1.0, tk.END):
+            text_widget.insert(tk.END, "\n❌ Syntax Errors Found:\n")
+            text_widget.insert(tk.END, "-" * 60 + "\n")
+            for i, error in enumerate(errores_sintacticos, 1):
+                text_widget.insert(tk.END, f"{i}. {error}\n")
             
         text_widget.config(state=tk.DISABLED)
+        
+        content = text_widget.get(1.0, tk.END)
+        print(f"Contenido del widget sintáctico: {len(content)} caracteres")
+        print(f"Errores sintácticos en lista: {len(errores_sintacticos)}")
+        
         return ast
         
     def perform_semantic_analysis(self, ast):

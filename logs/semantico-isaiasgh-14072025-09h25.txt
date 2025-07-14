@@ -1,0 +1,4 @@
+Errores semánticos - Usuario: isaiasgh
+Fecha: 2025-07-14 09:25:46
+==================================================
+Error semántico (línea 2): Operador '>=' requiere números (tipos: arreglo_simbolo, Integer).

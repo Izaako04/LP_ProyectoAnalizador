@@ -1486,7 +1486,9 @@ def realizar_analisis_semantico(nodo, contexto='global', linea_actual=1):
             
         # Solo verificar si el método es local (no tiene receptor)
         if receptor is None and metodo not in ['puts', 'print', 'printf', 'gets', 'require', 'split', 'each', 'new']:
-            verificar_metodo_definido(metodo, linea_actual)
+            # IMPORTANTE: No verificar si ya existe como variable
+            if metodo not in tabla_variables:
+                verificar_metodo_definido(metodo, linea_actual)
             
         if receptor:
             linea_actual = realizar_analisis_semantico(receptor, contexto, linea_actual)
@@ -1496,6 +1498,20 @@ def realizar_analisis_semantico(nodo, contexto='global', linea_actual=1):
             linea_actual = realizar_analisis_semantico(bloque, contexto, linea_actual)
         
         # Las llamadas a métodos normalmente están en una línea
+        return linea_actual
+        
+    elif tipo_nodo == 'acceso_elemento':
+        # NUEVO: Manejar acceso a elementos de array correctamente
+        _, arreglo, indice = nodo
+        
+        # Verificar que el arreglo existe como variable
+        if isinstance(arreglo, str) and arreglo not in tabla_variables:
+            error = f"Error semántico (línea {linea_actual}): Variable '{arreglo}' no declarada."
+            errores_semanticos.append(error)
+        
+        # Verificar que el índice es válido
+        linea_actual = realizar_analisis_semantico(indice, contexto, linea_actual)
+        
         return linea_actual
         
     elif tipo_nodo == 'operacion_binaria':
@@ -1615,12 +1631,6 @@ def realizar_analisis_semantico(nodo, contexto='global', linea_actual=1):
         linea_actual = realizar_analisis_semantico(bloque, contexto, linea_actual)
         return linea_actual
         
-    elif tipo_nodo == 'acceso_elemento':
-        _, arreglo, indice = nodo
-        linea_actual = realizar_analisis_semantico(arreglo, contexto, linea_actual)
-        linea_actual = realizar_analisis_semantico(indice, contexto, linea_actual)
-        return linea_actual
-        
     elif tipo_nodo in ['literal', 'arreglo', 'hash']:
         # Estos no agregan líneas por sí mismos
         return linea_actual
@@ -1631,7 +1641,7 @@ def realizar_analisis_semantico(nodo, contexto='global', linea_actual=1):
             if isinstance(hijo, (list, tuple)):
                 linea_actual = realizar_analisis_semantico(hijo, contexto, linea_actual)
         return linea_actual
-
+    
 # --- Construcción del Parser ---
 
 parser = yacc.yacc(debug=True)

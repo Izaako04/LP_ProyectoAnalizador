@@ -1,9 +1,14 @@
 numeros_semanticos = ["uno", "dos", "tres", "cuatro", "cinco"]
-
-def sumar_arreglo_semantico(arreglo)
-  suma = 0
-  for num in arreglo
-    suma = suma + num
+def encontrar_numero(numeros_semanticos)
+  resultado = ""
+  for num in numeros_semanticos
+    if num == "tres"
+      resultado = num
+    else
+      resultado = "no encontrado"
+    end
   end
-  return "La suma es: " + suma
+  return "El resultado es: " + resultado
 end
+
+puts encontrar_numero(numeros_semanticos)
